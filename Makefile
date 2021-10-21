@@ -1,6 +1,6 @@
 
 lisp: main.c
-	gcc -o $@ main.c -g -O2 -ldl
+	gcc -o $@ main.c -g -O2 -lm -ldl
 
 .PHONY: clean
 clean:
