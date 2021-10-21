@@ -2979,7 +2979,7 @@ obj f_load_c_library(CEnvironment *env)
             moveMemory(library, sLibraryName->val, sLibraryName->length);
             library[sLibraryName->length] = 0;
 
-            void *lib = dlopen(library, 0);
+            void *lib = dlopen(library, RTLD_NOW | RTLD_LOCAL);
             if (lib == 0)
             {
                 writeError("Failed to open the library");
