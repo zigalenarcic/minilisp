@@ -320,6 +320,6 @@
 (while (and (= (glfwWindowShouldClose window) 0) (= should-quit n))
        (game-loop))
 
---(glfwDestroyWindow window)
---(glfwTerminate)
---(quit 0)
+(glfwDestroyWindow window)
+(glfwTerminate)
+(quit 0)
