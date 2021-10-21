@@ -2982,8 +2982,8 @@ obj f_load_c_library(CEnvironment *env)
             void *lib = dlopen(library, RTLD_NOW | RTLD_LOCAL);
             if (lib == 0)
             {
-                writeError("Failed to open the library");
-                write(1,sLibraryName->val,sLibraryName->length);
+                writeNullTerminated(1, dlerror());
+                write(1,"\n",1);
                 return nil;
             }
 
