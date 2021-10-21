@@ -35,6 +35,9 @@ typedef i64 obj;
 #define MAKE_REAL(x) ((obj)(((i64)doubleToInt(x) & ~0x3LL) | 0x2LL))
 #define GET_REAL(x) (intToDouble((i64)(x) & ~0x3LL))
 
+#define IS_NUMBER(x) (IS_INTEGER(x) || IS_REAL(x))
+#define GET_DOUBLE_VALUE(x, def) (IS_INTEGER(x) ? (double)GET_INTEGER(x) : (IS_REAL(x) ? GET_REAL(x) : (def)))
+
 #define GET_PTR(x) ((void *)((x) & (~0x07)))
 #define OBJ_FROM_PTR(x, tag) ((i64)(x) | tag)
 #define CHECK_TAG(x, tag) (((x) & 0x07) == tag)
@@ -3160,6 +3163,26 @@ NUMERIC_FUNCTION(cos)
 NUMERIC_FUNCTION(tan)
 NUMERIC_FUNCTION(exp)
 
+obj f_mod(CEnvironment *env)
+{
+    obj arg0 = GET_ARG(env,0);
+    obj arg1 = GET_ARG(env,1);
+
+    if (IS_INTEGER(arg0) && IS_INTEGER(arg1))
+    {
+        return MAKE_INTEGER(GET_INTEGER(arg0) % GET_INTEGER(arg1));
+    }
+    else if (IS_NUMBER(arg0) && IS_NUMBER(arg1))
+    {
+        return MAKE_REAL(fmod(GET_DOUBLE_VALUE(arg0, 0.0), GET_DOUBLE_VALUE(arg1, 0.0)));
+    }
+    else
+    {
+        writeNullTerminated(1,"Arguments not numbers\n");
+        return nil;
+    }
+}
+
 obj f_get_time(CEnvironment *env)
 {
     struct timeval tv;
@@ -3338,6 +3361,7 @@ void initLisp(void)
     set_symbol_function(make_symbol("exp", -1), make_function(1,&f_exp, nil, nil));
     set_symbol(make_symbol("pi", -1), MAKE_REAL(3.141592653589793));
     set_symbol(make_symbol("e", -1), MAKE_REAL(2.718281828459045));
+    set_symbol_function(make_symbol("mod", -1), make_function(1,&f_mod, nil, nil));
     set_symbol_function(make_symbol("get-time", -1), make_function(1,&f_get_time, nil, nil));
     set_symbol_function(make_symbol("random-seed", -1), make_function(1,&f_random_seed, nil, nil));
     set_symbol_function(make_symbol("random", -1), make_function(1,&f_random, nil, nil));
