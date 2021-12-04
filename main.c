@@ -15,8 +15,15 @@
 
 #define STRING_DELIMITER '"'
 
-typedef long int i64;
+typedef char i8;
 typedef unsigned char u8;
+typedef short int i16;
+typedef unsigned short int u16;
+typedef int i32;
+typedef unsigned int u32;
+typedef long int i64;
+typedef unsigned long int u64;
+
 typedef i64 obj;
 
 #define IS_NIL(x) ((x) == nil)
@@ -131,6 +138,45 @@ typedef struct {
     obj f;
 } CCCallback;
 
+typedef struct {
+    OBJ_FIELDS;
+
+    i64 length;
+    unsigned char val[0];
+} CBuffer;
+
+struct CArrayView_;
+
+enum ARRAY_VIEW_ELEMENT_TYPE {
+        OBJT = 1,
+        I8T,
+        U8T,
+        I16T,
+        U16T,
+        I32T,
+        U32T,
+        I64T,
+        U64T,
+        F32T,
+        F64T,
+};
+
+typedef obj (* function_av_getter_ptr)(struct CArrayView_ *a, i64 i);
+typedef void (* function_av_setter_ptr)(struct CArrayView_ *a, i64 i, obj val);
+
+typedef struct CArrayView_ {
+    OBJ_FIELDS;
+
+    function_av_getter_ptr getter;
+    function_av_setter_ptr setter;
+    obj buffer;
+    i64 count;
+    i64 element_size;
+    i64 first_element;
+    i64 stride;
+    i64 element_type;
+} CArrayView;
+
 enum {
     PARSE_STATE_READ_NEXT_TOKEN = 0,
     PARSE_STATE_READING_UNKOWN_TOKEN = 1,
@@ -183,12 +229,24 @@ CMemoryHeap globalHeap;
 obj nil;
 obj symbol_true;
 obj symbol_quote;
+
+obj symbol_obj;
+obj symbol_i8;
+obj symbol_u8;
+obj symbol_i16;
+obj symbol_u16;
+obj symbol_i32;
+obj symbol_u32;
 obj symbol_i64;
+obj symbol_u64;
+obj symbol_f32;
 obj symbol_f64;
 
 void printType(i64 fd, obj o);
 void printString(i64 fd, obj o);
 void printCCallback(i64 fd, obj o);
+void printBuffer(i64 fd, obj o);
+void printArrayView(i64 fd, obj o);
 
 CTypeDefinition tType = {1, &tType, "type", 0, &printType};
 CTypeDefinition tInteger = {1, &tType, "integer", 0, 0};
@@ -198,6 +256,9 @@ CTypeDefinition tSymbolType = {1, &tType, "symbol", 0, 0};
 CTypeDefinition tFunctionType = {1, &tType, "function", 0, 0};
 CTypeDefinition tStringType = {1, &tType, "string", 0, &printString};
 CTypeDefinition tCCalbackType = {1, &tType, "ccallback", 0, &printCCallback};
+CTypeDefinition tBuffer = {1, &tType, "buffer", 0, &printBuffer};
+CTypeDefinition tArrayView = {1, &tType, "array-view", 0, &printArrayView};
+CTypeDefinition tStructView = {1, &tType, "struct-view", 0, 0};
 
 i64 dec_ref(obj o);
 
@@ -768,6 +829,81 @@ void printCCallback(i64 fd, obj o)
     write(fd,">",1);
 }
 
+void printBuffer(i64 fd, obj o)
+{
+    CBuffer *a = (CBuffer *)GET_PTR(o);
+    writeNullTerminated(fd,"<buffer [");
+
+    writeNumber(fd, a->length);
+    writeNullTerminated(fd,"] ");
+
+    i64 print_elements_count = a->length > 8 ? 4 : a->length;
+    for (i64 i = 0; i < print_elements_count; i++)
+    {
+        unsigned char val = a->val[i];
+
+        char str[2];
+        printHex(val, str, 2);
+        write(fd, str, 2);
+
+        if (i != (print_elements_count - 1))
+            write(fd," ",1);
+    }
+
+    if (a->length > print_elements_count)
+    {
+        writeNullTerminated(fd," ...>");
+    }
+    else
+    {
+        write(fd,">",1);
+    }
+}
+
+void printArrayView(i64 fd, obj o)
+{
+    CArrayView *a = (CArrayView *)GET_PTR(o);
+    writeNullTerminated(fd,"<array-view ");
+
+    switch (a->element_type)
+    {
+        case OBJT: writeNullTerminated(fd,"obj ["); break;
+        case I8T: writeNullTerminated(fd,"i8 ["); break;
+        case U8T: writeNullTerminated(fd,"u8 ["); break;
+        case I16T: writeNullTerminated(fd,"i16 ["); break;
+        case U16T: writeNullTerminated(fd,"u16 ["); break;
+        case I32T: writeNullTerminated(fd,"i32 ["); break;
+        case U32T: writeNullTerminated(fd,"u32 ["); break;
+        case I64T: writeNullTerminated(fd,"i64 ["); break;
+        case U64T: writeNullTerminated(fd,"u64 ["); break;
+        case F32T: writeNullTerminated(fd,"f32 ["); break;
+        case F64T: writeNullTerminated(fd,"f64 ["); break;
+        default: writeNullTerminated(fd,"N/A ["); break;
+    }
+
+    writeNumber(fd, a->count);
+    writeNullTerminated(fd,"] ");
+
+    i64 print_elements_count = a->count > 8 ? 4 : a->count;
+    for (i64 i = 0; i < print_elements_count; i++)
+    {
+        obj tmp = a->getter(a, i);
+        printo(fd, tmp);
+
+        if (i != (print_elements_count - 1))
+            write(fd," ",1);
+    }
+
+    if (a->count > print_elements_count)
+    {
+        writeNullTerminated(fd," ...>");
+    }
+    else
+    {
+        write(fd,">",1);
+    }
+}
+
 void printo(i64 fd, obj o)
 {
     if (IS_INTEGER(o))
@@ -905,6 +1041,11 @@ i64 dec_ref(obj o)
                 CFunction *f = (CFunction *)GET_PTR(o);
                 dec_ref(f->arglist);
                 dec_ref(f->body);
+            }
+            else if (IS_OF_TYPE(o, &tArrayView))
+            {
+                CArrayView *a = (CArrayView *)GET_PTR(o);
+                dec_ref(a->buffer);
             }
 
             freeHeap((i64)GET_PTR(o), &globalHeap);
@@ -1153,6 +1294,21 @@ obj make_string(const char *str, i64 len)
     write(1, "\n", 1);
 
     obj o = OBJ_FROM_PTR(s, 0x03);
+
+    return o;
+}
+
+obj make_buffer(i64 len)
+{
+    if (len < 0)
+        return nil;
+
+    CBuffer *a = (CBuffer *)allocateHeap(sizeof(CBuffer) + len, &globalHeap);
+    a->ref_count = 1;
+    a->type = &tBuffer;
+    a->length = len;
+
+    obj o = OBJ_FROM_PTR(a, 0x03);
 
     return o;
 }
@@ -2713,6 +2869,20 @@ obj f_ccall(CEnvironment *env)
             else
                 stack[i_args_stack++] = (i64)((CString *)GET_PTR(arg))->val;
         }
+        else if (IS_OF_TYPE(arg, &tBuffer))
+        {
+            if (i_regs_ints < 6)
+                regs[i_regs_ints++] = (i64)((CBuffer *)GET_PTR(arg))->val;
+            else
+                stack[i_args_stack++] = (i64)((CBuffer *)GET_PTR(arg))->val;
+        }
+        else if (IS_OF_TYPE(arg, &tArrayView))
+        {
+            if (i_regs_ints < 6)
+                regs[i_regs_ints++] = ((CArrayView *)GET_PTR(arg))->first_element;
+            else
+                stack[i_args_stack++] = ((CArrayView *)GET_PTR(arg))->first_element;
+        }
     }
 
     i64 ret = 0;
@@ -3304,6 +3474,239 @@ obj f_print_address(CEnvironment *env)
     }
 }
 
+obj f_buffer(CEnvironment *env)
+{
+    obj arg0 = GET_ARG(env,0);
+
+    if (IS_INTEGER(arg0))
+    {
+        return make_buffer(GET_INTEGER(arg0));
+    }
+    else if (IS_REAL(arg0))
+    {
+        return make_buffer((i64)GET_REAL(arg0));
+    }
+    else
+    {
+        writeError("Argument not a number\n");
+        return MAKE_INTEGER(0);
+    }
+}
+
+obj f_get_obj(struct CArrayView_ *a, i64 i) { return *(obj *)(a->first_element + i * a->stride); }
+
+obj f_get_i8(struct CArrayView_ *a, i64 i) { return MAKE_INTEGER(*(i8 *)(a->first_element + i * a->stride)); }
+obj f_get_u8(struct CArrayView_ *a, i64 i) { return MAKE_INTEGER(*(u8 *)(a->first_element + i * a->stride)); }
+
+obj f_get_i16(struct CArrayView_ *a, i64 i) { return MAKE_INTEGER(*(i16 *)(a->first_element + i * a->stride)); }
+obj f_get_u16(struct CArrayView_ *a, i64 i) { return MAKE_INTEGER(*(u16 *)(a->first_element + i * a->stride)); }
+
+obj f_get_i32(struct CArrayView_ *a, i64 i) { return MAKE_INTEGER(*(i32 *)(a->first_element + i * a->stride)); }
+obj f_get_u32(struct CArrayView_ *a, i64 i) { return MAKE_INTEGER(*(u32 *)(a->first_element + i * a->stride)); }
+
+obj f_get_i64(struct CArrayView_ *a, i64 i) { return MAKE_INTEGER(*(i64 *)(a->first_element + i * a->stride)); }
+obj f_get_u64(struct CArrayView_ *a, i64 i) { return MAKE_INTEGER(*(u64 *)(a->first_element + i * a->stride)); }
+
+obj f_get_f32(struct CArrayView_ *a, i64 i) { return MAKE_REAL(*(float *)(a->first_element + i * a->stride)); }
+obj f_get_f64(struct CArrayView_ *a, i64 i) { return MAKE_REAL(*(double *)(a->first_element + i * a->stride)); }
+
+void f_set_obj(struct CArrayView_ *a, i64 i, obj val) { *(obj *)(a->first_element + i * a->stride) = val; }
+
+void f_set_i8(struct CArrayView_ *a, i64 i, obj val) { *(i8 *)(a->first_element + i * a->stride) = GET_INTEGER(val); }
+void f_set_u8(struct CArrayView_ *a, i64 i, obj val) { *(u8 *)(a->first_element + i * a->stride) = GET_INTEGER(val); }
+
+void f_set_i16(struct CArrayView_ *a, i64 i, obj val) { *(i16 *)(a->first_element + i * a->stride) = GET_INTEGER(val); }
+void f_set_u16(struct CArrayView_ *a, i64 i, obj val) { *(u16 *)(a->first_element + i * a->stride) = GET_INTEGER(val); }
+
+void f_set_i32(struct CArrayView_ *a, i64 i, obj val) { *(i32 *)(a->first_element + i * a->stride) = GET_INTEGER(val); }
+void f_set_u32(struct CArrayView_ *a, i64 i, obj val) { *(u32 *)(a->first_element + i * a->stride) = GET_INTEGER(val); }
+
+void f_set_i64(struct CArrayView_ *a, i64 i, obj val) { *(i64 *)(a->first_element + i * a->stride) = GET_INTEGER(val); }
+void f_set_u64(struct CArrayView_ *a, i64 i, obj val) { *(u64 *)(a->first_element + i * a->stride) = GET_INTEGER(val); }
+
+void f_set_f32(struct CArrayView_ *a, i64 i, obj val) { *(float *)(a->first_element + i * a->stride) = (float)GET_DOUBLE_VALUE(val, 0.0); }
+void f_set_f64(struct CArrayView_ *a, i64 i, obj val) { *(double *)(a->first_element + i * a->stride) = GET_DOUBLE_VALUE(val, 0.0); }
+
+const struct {
+    obj *sym;
+    i64 element_type;
+    i64 element_size;
+    function_av_getter_ptr getter;
+    function_av_setter_ptr setter;
+} arrayViewData[] =
+{
+    {&nil, 0, 8, NULL, NULL},
+    {&symbol_obj, OBJT, 8, &f_get_obj, &f_set_obj},
+
+    {&symbol_i8, I8T, 1, &f_get_i8, &f_set_i8},
+    {&symbol_u8, U8T, 1, &f_get_u8, &f_set_u8},
+
+    {&symbol_i16, I16T, 2, &f_get_i16, &f_set_i16},
+    {&symbol_u16, U16T, 2, &f_get_u16, &f_set_u16},
+
+    {&symbol_i32, I32T, 4, &f_get_i32, &f_set_i32},
+    {&symbol_u32, U32T, 4, &f_get_u32, &f_set_u32},
+
+    {&symbol_i64, I64T, 8, &f_get_i64, &f_set_i64},
+    {&symbol_u64, U64T, 8, &f_get_u64, &f_set_u64},
+
+    {&symbol_f32, F32T, 4, &f_get_f32, &f_set_f32},
+    {&symbol_f64, F64T, 8, &f_get_f64, &f_set_f64},
+};
+
+
+obj f_array(CEnvironment *env)
+{
+    obj arg0 = GET_ARG(env,0);
+    obj arg1 = GET_ARG(env,1);
+
+    if (IS_SYMBOL(arg0) && IS_INTEGER(arg1))
+    {
+        i64 found_i = -1;
+        for (i64 i = 0; i < sizeof(arrayViewData) / sizeof(arrayViewData[0]); i++)
+        {
+            if (arg0 == *arrayViewData[i].sym)
+            {
+                found_i = i;
+                break;
+            }
+        }
+
+        if (found_i < 0)
+        {
+            writeError("Unknown type\n");
+            return MAKE_INTEGER(0);
+        }
+
+        i64 count = GET_INTEGER(arg1);
+        i64 buffer_size = count * arrayViewData[found_i].element_size;
+
+        obj b = make_buffer(buffer_size);
+
+        CArrayView *a = (CArrayView *)allocateHeap(sizeof(CArrayView), &globalHeap);
+        a->ref_count = 1;
+        a->type = &tArrayView;
+        a->buffer = b;
+        a->element_size = arrayViewData[found_i].element_size;
+        a->stride = a->element_size;
+        a->element_type = arrayViewData[found_i].element_type;
+        a->first_element = (i64)GET_PTR(a->buffer) + sizeof(CBuffer);
+        a->count = count;
+        a->getter = arrayViewData[found_i].getter;
+        a->setter = arrayViewData[found_i].setter;
+
+        obj o = OBJ_FROM_PTR(a, 0x03);
+
+        return o;
+    }
+    else
+    {
+        writeError("Argument not a number\n");
+        return MAKE_INTEGER(0);
+    }
+}
+
+obj f_array_ptr(CEnvironment *env)
+{
+    obj arg0 = GET_ARG(env,0);
+    obj arg1 = GET_ARG(env,1);
+    obj arg2 = GET_ARG(env,2);
+    obj arg3 = GET_ARG(env,3);
+
+    if (IS_SYMBOL(arg0) && IS_INTEGER(arg1) && IS_INTEGER(arg2) && IS_INTEGER(arg3))
+    {
+        i64 found_i = -1;
+        for (i64 i = 0; i < sizeof(arrayViewData) / sizeof(arrayViewData[0]); i++)
+        {
+            if (arg0 == *arrayViewData[i].sym)
+            {
+                found_i = i;
+                break;
+            }
+        }
+
+        if (found_i < 0)
+        {
+            writeError("Unknown type\n");
+            return MAKE_INTEGER(0);
+        }
+
+        i64 count = GET_INTEGER(arg1);
+
+        CArrayView *a = (CArrayView *)allocateHeap(sizeof(CArrayView), &globalHeap);
+        a->ref_count = 1;
+        a->type = &tArrayView;
+        a->buffer = nil;
+        a->element_size = arrayViewData[found_i].element_size;
+        a->stride = GET_INTEGER(arg3);
+        a->element_type = arrayViewData[found_i].element_type;
+        a->first_element = (i64)GET_INTEGER(arg2);
+        a->count = count;
+        a->getter = arrayViewData[found_i].getter;
+        a->setter = arrayViewData[found_i].setter;
+
+        obj o = OBJ_FROM_PTR(a, 0x03);
+
+        return o;
+    }
+    else
+    {
+        writeError("Argument not a number\n");
+        return MAKE_INTEGER(0);
+    }
+}
+
+obj f_aget(CEnvironment *env)
+{
+    obj arg0 = GET_ARG(env,0);
+    obj arg1 = GET_ARG(env,1);
+
+    if (IS_OF_TYPE(arg0, &tArrayView) && IS_INTEGER(arg1))
+    {
+        CArrayView *a = (CArrayView *)GET_PTR(arg0);
+        obj o = a->getter(a, GET_INTEGER(arg1));
+        return inc_ref(o);
+    }
+    else if (IS_OF_TYPE(arg0, &tBuffer) && IS_INTEGER(arg1))
+    {
+        CBuffer *a = (CBuffer *)GET_PTR(arg0);
+        obj o = MAKE_INTEGER(a->val[GET_INTEGER(arg1)]);
+        return o;
+    }
+    else
+    {
+        writeError("Argument not a and arrayview\n");
+        return MAKE_INTEGER(0);
+    }
+}
+
+obj f_aset(CEnvironment *env)
+{
+    obj arg0 = GET_ARG(env,0);
+    obj arg1 = GET_ARG(env,1);
+    obj arg2 = GET_ARG(env,2);
+
+    if (IS_OF_TYPE(arg0, &tArrayView) && IS_INTEGER(arg1))
+    {
+        i64 i = GET_INTEGER(arg1);
+        CArrayView *a = (CArrayView *)GET_PTR(arg0);
+        a->setter(a, i, arg2);
+        return inc_ref(arg2);
+    }
+    else if (IS_OF_TYPE(arg0, &tBuffer) && IS_INTEGER(arg1))
+    {
+        i64 i = GET_INTEGER(arg1);
+        CBuffer *a = (CBuffer *)GET_PTR(arg0);
+        a->val[i] = GET_INTEGER(arg2);
+        return MAKE_INTEGER(a->val[i]);
+    }
+    else
+    {
+        writeError("Argument not a and arrayview\n");
+        return MAKE_INTEGER(0);
+    }
+}
+
 void initLisp(void)
 {
     nil = make_symbol("n", -1);
@@ -3313,7 +3716,18 @@ void initLisp(void)
     set_symbol(symbol_true, inc_ref(symbol_true));
 
     symbol_quote = make_symbol("quote", -1);
+
+    symbol_obj = make_symbol("obj", -1);
+
+    symbol_i8 = make_symbol("i8", -1);
+    symbol_u8 = make_symbol("u8", -1);
+    symbol_i16 = make_symbol("i16", -1);
+    symbol_u16 = make_symbol("u16", -1);
+    symbol_i32 = make_symbol("i32", -1);
+    symbol_u32 = make_symbol("u32", -1);
     symbol_i64 = make_symbol("i64", -1);
+    symbol_u64 = make_symbol("u64", -1);
+    symbol_f32 = make_symbol("f32", -1);
     symbol_f64 = make_symbol("f64", -1);
 
     set_symbol_function(make_symbol("+", -1), make_function(1,&f_plus, nil, nil));
@@ -3366,6 +3780,11 @@ void initLisp(void)
     set_symbol_function(make_symbol("random-seed", -1), make_function(1,&f_random_seed, nil, nil));
     set_symbol_function(make_symbol("random", -1), make_function(1,&f_random, nil, nil));
     set_symbol_function(make_symbol("print-address", -1), make_function(1,&f_print_address, nil, nil));
+    set_symbol_function(make_symbol("buffer", -1), make_function(1,&f_buffer, nil, nil));
+    set_symbol_function(make_symbol("array", -1), make_function(1,&f_array, nil, nil));
+    set_symbol_function(make_symbol("array-ptr", -1), make_function(1,&f_array_ptr, nil, nil));
+    set_symbol_function(make_symbol("aget", -1), make_function(1,&f_aget, nil, nil));
+    set_symbol_function(make_symbol("aset", -1), make_function(1,&f_aset, nil, nil));
 }
 
 obj readInput(CEnvironment *env, CParseStatus *status, i64 fd, i64 readAll, i64 waitInput)
