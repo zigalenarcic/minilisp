@@ -64,8 +64,8 @@ typedef i64 obj;
     { env->call_stack[env->call_stack_pos][0] = (x); env->call_stack[env->call_stack_pos++][1] = (s); } else writeError("Call stack overflow"); } while (0)
 #define POP_CALL_STACK(env) ((env->call_stack_pos > 0) ? env->call_stack[--env->call_stack_pos][0] : nil)
 #define CALL_STACK(env, i) ((env)->call_stack[(env)->call_stack_frame + (i)])
-#define GET_COUNT(env) GET_INTEGER(CALL_STACK(env, 1)[0])
-#define GET_ARG(env, i) (CALL_STACK(env, (i) - GET_COUNT(env))[0])
+#define GET_ARG_COUNT(env) GET_INTEGER(CALL_STACK(env, 1)[0])
+#define GET_ARG(env, i) (CALL_STACK(env, (i) - GET_ARG_COUNT(env))[0])
 
 #define OBJ_FIELDS  \
     i64 ref_count; \
@@ -2214,7 +2214,7 @@ obj f_list(CEnvironment *env)
 {
     obj ret = nil;
 
-    i64 count = GET_COUNT(env);
+    i64 count = GET_ARG_COUNT(env);
     for (i64 i = count - 1; i >= 0; i--)
     {
         ret = add_list(inc_ref(GET_ARG(env, i)), ret);
@@ -2350,7 +2350,7 @@ obj f_function(CEnvironment *env, obj args)
 
 obj f_symbol_function(CEnvironment *env)
 {
-    if (GET_COUNT(env) != 1)
+    if (GET_ARG_COUNT(env) != 1)
     {
         writeError("Argument count not 1");
         return nil;
@@ -2369,7 +2369,7 @@ obj f_symbol_function(CEnvironment *env)
 
 obj f_type(CEnvironment *env)
 {
-    if (GET_COUNT(env) != 1)
+    if (GET_ARG_COUNT(env) != 1)
     {
         writeError("Argument count not 1");
         return nil;
@@ -2426,7 +2426,7 @@ obj f_print_environment(CEnvironment *env)
 
 obj f_quit(CEnvironment *env)
 {
-    if (GET_COUNT(env) > 0)
+    if (GET_ARG_COUNT(env) > 0)
         quitProcess(GET_INTEGER(GET_ARG(env,0)));
     else
         quitProcess(0);
@@ -2440,7 +2440,7 @@ obj f_plus(CEnvironment *env)
     double return_val_d = 0.0;
 
     i64 i = 0;
-    i64 count = GET_COUNT(env);
+    i64 count = GET_ARG_COUNT(env);
     for (i = 0; i < count; i++)
     {
         obj a = GET_ARG(env,i);
@@ -2492,7 +2492,7 @@ obj f_multiply(CEnvironment *env)
     double return_val_d = 1.0;
 
     i64 i = 0;
-    i64 count = GET_COUNT(env);
+    i64 count = GET_ARG_COUNT(env);
     for (i = 0; i < count; i++)
     {
         obj a = GET_ARG(env,i);
@@ -2545,7 +2545,7 @@ obj f_minus(CEnvironment *env)
     double return_val_d = 0;
 
     i64 i = 0;
-    i64 count = GET_COUNT(env);
+    i64 count = GET_ARG_COUNT(env);
     if (count == 1)
     {
         obj a = GET_ARG(env,0);
@@ -2621,7 +2621,7 @@ obj f_divide(CEnvironment *env)
     double return_val_d = 0;
 
     i64 i = 0;
-    i64 count = GET_COUNT(env);
+    i64 count = GET_ARG_COUNT(env);
     if (count == 1)
     {
         obj a = GET_ARG(env,0);
@@ -2708,7 +2708,7 @@ obj f_int_divide(CEnvironment *env)
     i64 return_val = 0;
 
     i64 i = 0;
-    i64 count = GET_COUNT(env);
+    i64 count = GET_ARG_COUNT(env);
     if (count < 2)
     {
         writeError("2 Arguments or more required");
@@ -2744,7 +2744,7 @@ obj f_int_divide(CEnvironment *env)
 
 obj f_print(CEnvironment *env)
 {
-    i64 argCount = GET_COUNT(env);
+    i64 argCount = GET_ARG_COUNT(env);
 
     for (i64 i = 0; i < argCount; i++)
     {
@@ -2808,7 +2808,7 @@ obj f_ccall(CEnvironment *env)
     i64 ptr = (i64)((CFunction *)GET_PTR(f))->f_ptr;
     obj argtypes =  ((CFunction *)GET_PTR(f))->argtypes;
 
-    i64 arg_count = GET_COUNT(env) - 1;
+    i64 arg_count = GET_ARG_COUNT(env) - 1;
     /* regs[] will be copied to registers: rdi, rsi, rdx, rcx, r8, r9,
      * xmm0, xmm1, xmm2, xmm3, xmm4, xmm5, xmm6, xmm7 */
     i64 regs[14];
@@ -2821,7 +2821,7 @@ obj f_ccall(CEnvironment *env)
 
     obj types_current = argtypes;
 
-    for (i64 i = 1; i < GET_COUNT(env); i++)
+    for (i64 i = 1; i < GET_ARG_COUNT(env); i++)
     {
         obj arg = GET_ARG(env,i);
         obj type = IS_LIST(types_current) ? CAR(types_current) : nil;
@@ -3228,7 +3228,7 @@ obj f_define_c_function(CEnvironment *env)
             if (symbol)
             {
                 obj bind_symbol = make_symbol(function, -1);
-                obj argtypes = (GET_COUNT(env) > 2) ? GET_ARG(env,2) : nil;
+                obj argtypes = (GET_ARG_COUNT(env) > 2) ? GET_ARG(env,2) : nil;
                 obj fun = make_function(5, symbol, nil, argtypes);
                 set_symbol_function(bind_symbol, fun);
                 //dec_ref(bind_symbol);
@@ -3394,7 +3394,7 @@ obj f_random(CEnvironment *env)
 {
     obj arg0 = GET_ARG(env,0);
 
-    if (GET_COUNT(env) < 1)
+    if (GET_ARG_COUNT(env) < 1)
     {
         return MAKE_REAL((double)GetRandom() / (double)0xffffffffffffffffull);
     }
