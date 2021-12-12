@@ -13,6 +13,14 @@
 #include <stdio.h>
 #include <math.h>
 
+#include <fcntl.h>
+#include <unistd.h>
+#include <errno.h>
+#include <string.h>
+
+#define write MyWrite
+#define read MyRead
+
 #define STRING_DELIMITER '"'
 
 typedef char i8;
@@ -2228,6 +2236,56 @@ obj f_add_to_list(CEnvironment *env)
     return add_list(inc_ref(GET_ARG(env, 0)), inc_ref(GET_ARG(env, 1)));
 }
 
+obj f_push(CEnvironment *env, obj args)
+{
+    obj sym = CAR(CDR(args));
+    obj val = eval(CAR(args), env);
+
+    if (IS_SYMBOL(sym))
+    {
+        obj sym_val = eval(sym, env);
+
+        if (IS_LIST(sym_val) || IS_NIL(sym_val))
+        {
+            set_symbol(sym, add_list(val, inc_ref(sym_val)));
+        }
+        else
+        {
+            writeError("List required\n");
+            dec_ref(val);
+        }
+
+        dec_ref(sym_val);
+    }
+
+    return nil;
+}
+
+obj f_pop(CEnvironment *env, obj args)
+{
+    obj sym = CAR(args);
+    obj ret = nil;
+
+    if (IS_SYMBOL(sym))
+    {
+        obj val = eval(sym, env);
+
+        if (IS_LIST(val))
+        {
+            ret = inc_ref(CAR(val));
+            set_symbol(sym, inc_ref(CDR(val)));
+        }
+        else
+        {
+            writeError("List required\n");
+        }
+        
+        dec_ref(val);
+    }
+
+    return ret;
+}
+
 obj f_first(CEnvironment *env)
 {
     return inc_ref(CAR(GET_ARG(env, 0)));
@@ -3332,6 +3390,29 @@ NUMERIC_FUNCTION(sin)
 NUMERIC_FUNCTION(cos)
 NUMERIC_FUNCTION(tan)
 NUMERIC_FUNCTION(exp)
+NUMERIC_FUNCTION(log)
+NUMERIC_FUNCTION(log10)
+
+obj f_abs(CEnvironment *env)
+{
+    obj arg0 = GET_ARG(env,0);
+
+    if (IS_INTEGER(arg0))
+    {
+        i64 x = GET_INTEGER(arg0);
+        return MAKE_INTEGER((x < 0) ? -x : x);
+    }
+    else if (IS_REAL(arg0))
+    {
+        double x = GET_REAL(arg0);
+        return MAKE_REAL((x < 0.0) ? -x : x);
+    }
+    else
+    {
+        writeNullTerminated(1,"Argument not a number\n");
+        return nil;
+    }
+}
 
 obj f_mod(CEnvironment *env)
 {
@@ -3613,7 +3694,7 @@ obj f_array_ptr(CEnvironment *env)
     obj arg2 = GET_ARG(env,2);
     obj arg3 = GET_ARG(env,3);
 
-    if (IS_SYMBOL(arg0) && IS_INTEGER(arg1) && IS_INTEGER(arg2) && IS_INTEGER(arg3))
+    if (IS_SYMBOL(arg0) && IS_INTEGER(arg1) && IS_INTEGER(arg2))
     {
         i64 found_i = -1;
         for (i64 i = 0; i < sizeof(arrayViewData) / sizeof(arrayViewData[0]); i++)
@@ -3638,7 +3719,7 @@ obj f_array_ptr(CEnvironment *env)
         a->type = &tArrayView;
         a->buffer = nil;
         a->element_size = arrayViewData[found_i].element_size;
-        a->stride = GET_INTEGER(arg3);
+        a->stride = ((GET_ARG_COUNT(env) > 3 && IS_INTEGER(arg3)) ? GET_INTEGER(arg3) : 1) * a->element_size;
         a->element_type = arrayViewData[found_i].element_type;
         a->first_element = (i64)GET_INTEGER(arg2);
         a->count = count;
@@ -3707,6 +3788,206 @@ obj f_aset(CEnvironment *env)
     }
 }
 
+obj f_openFile(CEnvironment *env)
+{
+    obj fileName = GET_ARG(env,0);
+    i64 create = (GET_ARG_COUNT(env) > 1) && (IS_INTEGER(GET_ARG(env, 1))) && (GET_INTEGER(GET_ARG(env, 1)) == 1) ? 1 : 0;
+
+    char tmp[1024];
+    i64 len = ((CString *)GET_PTR(fileName))->length;
+    moveMemory(tmp, ((CString *)GET_PTR(fileName))->val, len);
+    tmp[len] = '\0';
+
+    int ret;
+    if (create)
+        ret = openFile(tmp, 0100 /*O_CREAT*/ | 01000 /* O_TRUNC */ | 2 /*O_RDWR*/, 0644);
+    else
+        ret = openFile(tmp, 2 /*O_RDWR*/, 0);
+
+    if (ret < 0)
+        printf("<%s>err %s\n", tmp, strerror(errno));
+    return MAKE_INTEGER(ret);
+}
+
+obj f_createFile(CEnvironment *env)
+{
+    obj fileName = GET_ARG(env,0);
+
+    char tmp[1024];
+    i64 len = ((CString *)GET_PTR(fileName))->length;
+    moveMemory(tmp, ((CString *)GET_PTR(fileName))->val, len);
+    tmp[len] = '\0';
+
+int ret = openFile(tmp, 0100 /*O_CREAT*/ | 2 /*O_RDWR*/ | 01000 /* O_TRUNC */, 0644);
+
+if (ret < 0)
+    printf("<%s>err %s\n", tmp, strerror(errno));
+    return MAKE_INTEGER(ret);
+}
+
+obj f_closeFile(CEnvironment *env)
+{
+    obj arg0 = GET_ARG(env,0);
+
+    if (!IS_INTEGER(arg0))
+    {
+        writeError("First argument must be an integer\n");
+        return nil;
+    }
+
+    return MAKE_INTEGER(close(GET_INTEGER(arg0)));
+}
+
+obj f_write(CEnvironment *env)
+{
+    obj arg0 = GET_ARG(env,0);
+    obj arg1 = GET_ARG(env,1);
+
+    if (!IS_INTEGER(arg0))
+    {
+        writeError("First argument must be an integer\n");
+        return nil;
+    }
+
+    i64 bytes_written = 0;
+
+    obj o = arg1;
+
+    if (IS_OF_TYPE(arg1, &tStringType))
+    {
+        CString *s = (CString *)GET_PTR(o);
+        bytes_written += write(GET_INTEGER(arg0),s->val,s->length);
+    }
+    else if (IS_OF_TYPE(arg1, &tBuffer))
+    {
+        CBuffer *s = (CBuffer *)GET_PTR(o);
+        bytes_written += write(GET_INTEGER(arg0),s->val,s->length);
+    }
+    else if (IS_OF_TYPE(arg1, &tArrayView))
+    {
+        CArrayView *s = (CArrayView *)GET_PTR(o);
+        if (s->element_size == s->stride)
+        {
+            bytes_written += write(GET_INTEGER(arg0), (void *)s->first_element, s->count * s->element_size);
+        }
+        else
+        {
+            for (i64 i = 0; i < s->count; i++)
+                bytes_written += write(GET_INTEGER(arg0), (void *)(s->first_element + i * s->stride), s->element_size);
+        }
+    }
+    else if (IS_LIST(arg1))
+    {
+        /* write bytes */
+#define CHUNK  1024
+        u8 tmp[CHUNK];
+
+        i64 bytes = 0;
+
+        for (obj c = arg1; !IS_NIL(c); c = CDR(c))
+        {
+            tmp[bytes++] = GET_INTEGER(CAR(c));
+
+            if (bytes == CHUNK)
+            {
+                bytes_written += write(GET_INTEGER(arg0), (void *)tmp, bytes);
+                bytes = 0;
+            }
+        }
+
+        if (bytes > 0)
+            bytes_written += write(GET_INTEGER(arg0), (void *)tmp, bytes);
+    }
+    else if (IS_INTEGER(arg1))
+    {
+        u8 tmp = GET_INTEGER(arg1);
+        bytes_written += write(GET_INTEGER(arg0), (void *)&tmp, 1);
+    }
+
+    return MAKE_INTEGER(bytes_written);
+}
+
+obj f_seek(CEnvironment *env)
+{
+    obj arg0 = GET_ARG(env,0);
+    obj arg1 = GET_ARG(env,1);
+    obj arg2 = GET_ARG(env,2);
+
+    if (!IS_INTEGER(arg0))
+    {
+        writeError("First argument must be an integer\n");
+        return nil;
+    }
+
+    i64 ret = 0;
+    if (GET_ARG_COUNT(env) >= 2)
+        ret = lseek(GET_INTEGER(arg0), GET_INTEGER(arg1), SEEK_SET);
+    else
+        ret = lseek(GET_INTEGER(arg0), 0, SEEK_CUR);
+
+    return MAKE_INTEGER(ret);
+}
+
+obj f_bit_and(CEnvironment *env)
+{
+    obj arg0 = GET_ARG(env,0);
+    obj arg1 = GET_ARG(env,1);
+
+    if (!IS_INTEGER(arg0) || !IS_INTEGER(arg1))
+    {
+        writeError("First two arguments must be integers\n");
+        return nil;
+    }
+
+    i64 num = GET_INTEGER(arg0);
+    i64 mask = GET_INTEGER(arg1);
+
+    return MAKE_INTEGER(num & mask);
+}
+
+obj f_bit_shift(CEnvironment *env)
+{
+    obj arg0 = GET_ARG(env,0);
+    obj arg1 = GET_ARG(env,1);
+
+    if (!IS_INTEGER(arg0) || !IS_INTEGER(arg1))
+    {
+        writeError("First two arguments must be integers\n");
+        return nil;
+    }
+
+    i64 num = GET_INTEGER(arg0);
+    i64 shift = GET_INTEGER(arg1);
+
+    if (shift < 0)
+        return MAKE_INTEGER(num >> (-shift));
+    else
+        return MAKE_INTEGER(num << shift);
+}
+
+obj f_sleep(CEnvironment *env)
+{
+    obj arg0 = GET_ARG(env,0);
+
+    if (!IS_INTEGER(arg0) && !IS_REAL(arg0))
+    {
+        writeError("First arguments must be a number\n");
+        return nil;
+    }
+
+    i64 sleep_usec = GET_DOUBLE_VALUE(arg0, 0.0) * 1000000.0;
+
+    if (sleep_usec > 0)
+    {
+        struct timeval tv;
+        tv.tv_sec = sleep_usec / 1000000;
+        tv.tv_usec = sleep_usec % 1000000;
+        select(0, NULL, NULL, NULL, &tv);
+    }
+
+    return nil;
+}
+
 void initLisp(void)
 {
     nil = make_symbol("n", -1);
@@ -3747,6 +4028,8 @@ void initLisp(void)
     set_symbol_function(make_symbol(">=", -1), make_function(2,&f_more_eq, nil, nil));
     set_symbol_function(make_symbol("list", -1), make_function(1,&f_list, nil, nil));
     set_symbol_function(make_symbol("add-to-list", -1), make_function(1,&f_add_to_list, nil, nil));
+    set_symbol_function(make_symbol("push", -1), make_function(2,&f_push, nil, nil));
+    set_symbol_function(make_symbol("pop", -1), make_function(2,&f_pop, nil, nil));
     set_symbol_function(make_symbol("first", -1), make_function(1,&f_first, nil, nil));
     set_symbol_function(make_symbol("rest", -1), make_function(1,&f_rest, nil, nil));
     set_symbol_function(symbol_quote, make_function(2,&f_quote, nil, nil));
@@ -3773,8 +4056,11 @@ void initLisp(void)
     set_symbol_function(make_symbol("cos", -1), make_function(1,&f_cos, nil, nil));
     set_symbol_function(make_symbol("tan", -1), make_function(1,&f_tan, nil, nil));
     set_symbol_function(make_symbol("exp", -1), make_function(1,&f_exp, nil, nil));
+    set_symbol_function(make_symbol("log", -1), make_function(1,&f_log, nil, nil));
+    set_symbol_function(make_symbol("log10", -1), make_function(1,&f_log10, nil, nil));
     set_symbol(make_symbol("pi", -1), MAKE_REAL(3.141592653589793));
     set_symbol(make_symbol("e", -1), MAKE_REAL(2.718281828459045));
+    set_symbol_function(make_symbol("abs", -1), make_function(1,&f_abs, nil, nil));
     set_symbol_function(make_symbol("mod", -1), make_function(1,&f_mod, nil, nil));
     set_symbol_function(make_symbol("get-time", -1), make_function(1,&f_get_time, nil, nil));
     set_symbol_function(make_symbol("random-seed", -1), make_function(1,&f_random_seed, nil, nil));
@@ -3782,9 +4068,17 @@ void initLisp(void)
     set_symbol_function(make_symbol("print-address", -1), make_function(1,&f_print_address, nil, nil));
     set_symbol_function(make_symbol("buffer", -1), make_function(1,&f_buffer, nil, nil));
     set_symbol_function(make_symbol("array", -1), make_function(1,&f_array, nil, nil));
-    set_symbol_function(make_symbol("array-ptr", -1), make_function(1,&f_array_ptr, nil, nil));
+    set_symbol_function(make_symbol("array-view-ptr", -1), make_function(1,&f_array_ptr, nil, nil));
     set_symbol_function(make_symbol("aget", -1), make_function(1,&f_aget, nil, nil));
     set_symbol_function(make_symbol("aset", -1), make_function(1,&f_aset, nil, nil));
+    set_symbol_function(make_symbol("open", -1), make_function(1,&f_openFile, nil, nil));
+    set_symbol_function(make_symbol("create-file", -1), make_function(1,&f_createFile, nil, nil));
+    set_symbol_function(make_symbol("close", -1), make_function(1,&f_closeFile, nil, nil));
+    set_symbol_function(make_symbol("write", -1), make_function(1,&f_write, nil, nil));
+    set_symbol_function(make_symbol("seek", -1), make_function(1,&f_seek, nil, nil));
+    set_symbol_function(make_symbol("bit-and", -1), make_function(1,&f_bit_and, nil, nil));
+    set_symbol_function(make_symbol("bit-shift", -1), make_function(1,&f_bit_shift, nil, nil));
+    set_symbol_function(make_symbol("sleep", -1), make_function(1,&f_sleep, nil, nil));
 }
 
 obj readInput(CEnvironment *env, CParseStatus *status, i64 fd, i64 readAll, i64 waitInput)
