@@ -51,6 +51,7 @@ typedef i64 obj;
 #define GET_REAL(x) (intToDouble((i64)(x) & ~0x3LL))
 
 #define IS_NUMBER(x) (IS_INTEGER(x) || IS_REAL(x))
+#define GET_INTEGER_VALUE(x, def) (IS_INTEGER(x) ? GET_INTEGER(x) : (IS_REAL(x) ? (i64)GET_REAL(x) : (def)))
 #define GET_DOUBLE_VALUE(x, def) (IS_INTEGER(x) ? (double)GET_INTEGER(x) : (IS_REAL(x) ? GET_REAL(x) : (def)))
 
 #define GET_PTR(x) ((void *)((x) & (~0x07)))
@@ -69,7 +70,7 @@ typedef i64 obj;
 #define GET_REF_CNT(x) (*(i64 *)GET_PTR(x))
 
 #define PUSH_CALL_STACK(env, x, s) do { if (env->call_stack_pos < (sizeof(env->call_stack)/sizeof(env->call_stack[0]))) \
-    { env->call_stack[env->call_stack_pos][0] = (x); env->call_stack[env->call_stack_pos++][1] = (s); } else writeError("Call stack overflow"); } while (0)
+    { env->call_stack[env->call_stack_pos][0] = (x); env->call_stack[env->call_stack_pos++][1] = (s); } else writeError(env, "Call stack overflow"); } while (0)
 #define POP_CALL_STACK(env) ((env->call_stack_pos > 0) ? env->call_stack[--env->call_stack_pos][0] : nil)
 #define CALL_STACK(env, i) ((env)->call_stack[(env)->call_stack_frame + (i)])
 #define GET_ARG_COUNT(env) GET_INTEGER(CALL_STACK(env, 1)[0])
@@ -515,12 +516,23 @@ void writeNumber(i64 fd, i64 number)
     write(fd, &buffer[i + 1], 23 - i);
 }
 
-void writeError(const char *text)
+obj f_print_environment(CEnvironment *env);
+void doWriteError(CEnvironment *env, const char *func, const char *text)
 {
-    write(2, "Error:", 6);
+    if (env)
+    {
+        f_print_environment(env);
+    }
+    write(2, "Error: ", 6);
+    writeNullTerminated(2, func);
+    write(2, ": ", 2);
     writeNullTerminated(2, text);
     write(2, "\n", 1);
+
+    quitProcess(1);
 }
+
+#define writeError(env, text) doWriteError(env, __func__, text)
 
 void initHeap(CMemoryHeap *heap)
 {
@@ -1387,7 +1399,7 @@ obj make_function(i64 function_type, void *f_ptr, obj definition, obj argtypes)
 
                 if (!IS_SYMBOL(arg_name))
                 {
-                    writeError("Argument not a symbol - invalid\n");
+                    writeError(NULL, "make_function: Argument not a symbol - invalid\n");
                     printo(2,arg_name);
                     write(2,"\n",1);
 
@@ -1886,7 +1898,7 @@ obj eval_function(obj f, obj args, CEnvironment *env)
 
         if (!IS_NIL(c_val))
         {
-            writeError("Too many arguments\n");
+            writeError(env, "Too many arguments\n");
         }
 
         i64 i = 0;
@@ -1901,7 +1913,7 @@ obj eval_function(obj f, obj args, CEnvironment *env)
 
         if (!IS_NIL(c_name))
         {
-            writeError("Too few arguments\n");
+            writeError(env, "Too few arguments\n");
         }
     }
 
@@ -1982,8 +1994,8 @@ obj eval(obj o, CEnvironment *env)
         }
         else
         {
-            writeError("Symbol undefined");
-            writeError(s->name);
+            writeError(env, "Symbol undefined");
+            writeError(env, s->name);
             return nil;
         }
     }
@@ -2000,7 +2012,7 @@ obj eval(obj o, CEnvironment *env)
         }
         else
         {
-            writeError("Object not a function:");
+            writeError(env, "Object not a function:");
             printo(2,f);
             write(2,"\n",1);
             return nil;
@@ -2165,7 +2177,7 @@ obj f_or(CEnvironment *env, obj args)
             { \
                 dec_ref(val_ref); \
                 dec_ref(val); \
-                writeError("Variable not a number"); \
+                writeError(env, "Variable not a number"); \
                 return nil; \
             } \
         } \
@@ -2193,7 +2205,7 @@ obj f_or(CEnvironment *env, obj args)
             { \
                 dec_ref(val_ref); \
                 dec_ref(val); \
-                writeError("Variable not a number"); \
+                writeError(env, "Variable not a number"); \
                 return nil; \
             } \
         } \
@@ -2201,7 +2213,7 @@ obj f_or(CEnvironment *env, obj args)
         { \
             dec_ref(val_ref); \
             dec_ref(val); \
-            writeError("Variable not a number"); \
+            writeError(env, "Variable not a number"); \
             return nil; \
         } \
         \
@@ -2251,7 +2263,7 @@ obj f_push(CEnvironment *env, obj args)
         }
         else
         {
-            writeError("List required\n");
+            writeError(env, "List required\n");
             dec_ref(val);
         }
 
@@ -2277,7 +2289,7 @@ obj f_pop(CEnvironment *env, obj args)
         }
         else
         {
-            writeError("List required\n");
+            writeError(env, "List required\n");
         }
         
         dec_ref(val);
@@ -2357,7 +2369,7 @@ obj f_loop(CEnvironment *env, obj args)
     obj variable = IS_LIST(init_form) ? CAR(init_form) : init_form;
     if (!IS_SYMBOL(variable))
     {
-        writeError("Variable not a symbol");
+        writeError(env, "Variable not a symbol");
         return nil;
     }
 
@@ -2410,7 +2422,7 @@ obj f_symbol_function(CEnvironment *env)
 {
     if (GET_ARG_COUNT(env) != 1)
     {
-        writeError("Argument count not 1");
+        writeError(env, "Argument count not 1");
         return nil;
     }
 
@@ -2421,7 +2433,7 @@ obj f_symbol_function(CEnvironment *env)
         return inc_ref(((CSymbol *)GET_PTR(o))->function_val);
     }
 
-    writeError("Argument not a symbol");
+    writeError(env, "Argument not a symbol");
     return nil;
 }
 
@@ -2429,7 +2441,7 @@ obj f_type(CEnvironment *env)
 {
     if (GET_ARG_COUNT(env) != 1)
     {
-        writeError("Argument count not 1");
+        writeError(env, "Argument count not 1");
         return nil;
     }
 
@@ -2513,7 +2525,7 @@ obj f_plus(CEnvironment *env)
         }
         else
         {
-            writeError("Argument not a number");
+            writeError(env, "Argument not a number");
             return nil;
         }
     }
@@ -2536,7 +2548,7 @@ obj f_plus(CEnvironment *env)
         }
         else
         {
-            writeError("Argument not a number");
+            writeError(env, "Argument not a number");
             return nil;
         }
     }
@@ -2565,7 +2577,7 @@ obj f_multiply(CEnvironment *env)
         }
         else
         {
-            writeError("Argument not a number");
+            writeError(env, "Argument not a number");
             return nil;
         }
     }
@@ -2588,7 +2600,7 @@ obj f_multiply(CEnvironment *env)
         }
         else
         {
-            writeError("Argument not a number");
+            writeError(env, "Argument not a number");
             return nil;
         }
     }
@@ -2617,7 +2629,7 @@ obj f_minus(CEnvironment *env)
         }
         else
         {
-            writeError("Argument not a number");
+            writeError(env, "Argument not a number");
             return nil;
         }
     }
@@ -2642,7 +2654,7 @@ obj f_minus(CEnvironment *env)
         }
         else
         {
-            writeError("Argument not a number");
+            writeError(env, "Argument not a number");
             return nil;
         }
     }
@@ -2665,7 +2677,7 @@ obj f_minus(CEnvironment *env)
         }
         else
         {
-            writeError("Argument not a number");
+            writeError(env, "Argument not a number");
             return nil;
         }
     }
@@ -2693,7 +2705,7 @@ obj f_divide(CEnvironment *env)
         }
         else
         {
-            writeError("Argument not a number");
+            writeError(env, "Argument not a number");
             return nil;
         }
     }
@@ -2730,7 +2742,7 @@ obj f_divide(CEnvironment *env)
         }
         else
         {
-            writeError("Argument not a number");
+            writeError(env, "Argument not a number");
             return nil;
         }
     }
@@ -2753,7 +2765,7 @@ obj f_divide(CEnvironment *env)
         }
         else
         {
-            writeError("Argument not a number");
+            writeError(env, "Argument not a number");
             return nil;
         }
     }
@@ -2769,7 +2781,7 @@ obj f_int_divide(CEnvironment *env)
     i64 count = GET_ARG_COUNT(env);
     if (count < 2)
     {
-        writeError("2 Arguments or more required");
+        writeError(env, "2 Arguments or more required");
         return nil;
     }
 
@@ -2792,7 +2804,7 @@ obj f_int_divide(CEnvironment *env)
         }
         else
         {
-            writeError("Argument not a number");
+            writeError(env, "Argument not a number");
             return nil;
         }
     }
@@ -2983,7 +2995,7 @@ obj f_define_c_callback(CEnvironment *env, obj args)
         c_obj->f = eval(CAR(CDR(args)), env);
         if (!IS_FUNCTION(c_obj->f))
         {
-            writeError("second argument not a function\n");
+            writeError(env, "second argument not a function\n");
             return nil;
         }
 
@@ -3173,7 +3185,7 @@ mov rdx, 0x1234567890abcdef
         return inc_ref(c);
     }
 
-    writeError("Arguments incorrect type");
+    writeError(env, "Arguments incorrect type");
 
     return nil;
 }
@@ -3188,7 +3200,7 @@ obj f_ccallback(CEnvironment *env)
         return MAKE_INTEGER((i64)&c_obj->code);
     }
 
-    writeError("Arguments incorrect type");
+    writeError(env, "Arguments incorrect type");
 
     return nil;
 }
@@ -3224,7 +3236,7 @@ obj f_load_c_library(CEnvironment *env)
     }
     else
     {
-        writeError("Arguments not strings");
+        writeError(env, "Arguments not strings");
         return nil;
     }
 
@@ -3258,7 +3270,7 @@ obj f_load_symbol(CEnvironment *env)
     }
     else
     {
-        writeError("Arguments integer and string");
+        writeError(env, "Arguments integer and string");
         return nil;
     }
 
@@ -3294,14 +3306,14 @@ obj f_define_c_function(CEnvironment *env)
             }
             else
             {
-                writeError("Symbol failed to load");
+                writeError(env, "Symbol failed to load");
                 writeNullTerminated(2,function);
                 return nil;
             }
         }
     }
 
-    writeError("Arguments incorrect type");
+    writeError(env, "Arguments incorrect type");
 
     return nil;
 }
@@ -3392,6 +3404,9 @@ NUMERIC_FUNCTION(tan)
 NUMERIC_FUNCTION(exp)
 NUMERIC_FUNCTION(log)
 NUMERIC_FUNCTION(log10)
+NUMERIC_FUNCTION(floor)
+NUMERIC_FUNCTION(ceil)
+NUMERIC_FUNCTION(round)
 
 obj f_abs(CEnvironment *env)
 {
@@ -3466,7 +3481,7 @@ obj f_random_seed(CEnvironment *env)
     }
     else
     {
-        writeError("Argument not a number\n");
+        writeError(env, "Argument not a number\n");
         return nil;
     }
 }
@@ -3493,7 +3508,7 @@ obj f_random(CEnvironment *env)
     }
     else
     {
-        writeError("Argument not a number\n");
+        writeError(env, "Argument not a number\n");
         return MAKE_INTEGER(0);
     }
 }
@@ -3550,7 +3565,7 @@ obj f_print_address(CEnvironment *env)
     }
     else
     {
-        writeError("Argument not a number\n");
+        writeError(env, "Argument not a number\n");
         return MAKE_INTEGER(0);
     }
 }
@@ -3569,7 +3584,7 @@ obj f_buffer(CEnvironment *env)
     }
     else
     {
-        writeError("Argument not a number\n");
+        writeError(env, "Argument not a number\n");
         return MAKE_INTEGER(0);
     }
 }
@@ -3641,7 +3656,7 @@ obj f_array(CEnvironment *env)
     obj arg0 = GET_ARG(env,0);
     obj arg1 = GET_ARG(env,1);
 
-    if (IS_SYMBOL(arg0) && IS_INTEGER(arg1))
+    if (IS_SYMBOL(arg0) && IS_NUMBER(arg1))
     {
         i64 found_i = -1;
         for (i64 i = 0; i < sizeof(arrayViewData) / sizeof(arrayViewData[0]); i++)
@@ -3655,11 +3670,11 @@ obj f_array(CEnvironment *env)
 
         if (found_i < 0)
         {
-            writeError("Unknown type\n");
+            writeError(env, "Unknown type\n");
             return MAKE_INTEGER(0);
         }
 
-        i64 count = GET_INTEGER(arg1);
+        i64 count = GET_INTEGER_VALUE(arg1, 0);
         i64 buffer_size = count * arrayViewData[found_i].element_size;
 
         obj b = make_buffer(buffer_size);
@@ -3682,7 +3697,7 @@ obj f_array(CEnvironment *env)
     }
     else
     {
-        writeError("Argument not a number\n");
+        writeError(env, "Argument not a number\n");
         return MAKE_INTEGER(0);
     }
 }
@@ -3708,7 +3723,7 @@ obj f_array_ptr(CEnvironment *env)
 
         if (found_i < 0)
         {
-            writeError("Unknown type\n");
+            writeError(env, "Unknown type\n");
             return MAKE_INTEGER(0);
         }
 
@@ -3732,7 +3747,7 @@ obj f_array_ptr(CEnvironment *env)
     }
     else
     {
-        writeError("Argument not a number\n");
+        writeError(env, "Argument not a number\n");
         return MAKE_INTEGER(0);
     }
 }
@@ -3756,7 +3771,7 @@ obj f_aget(CEnvironment *env)
     }
     else
     {
-        writeError("Argument not a and arrayview\n");
+        writeError(env, "Argument not a and arrayview\n");
         return MAKE_INTEGER(0);
     }
 }
@@ -3783,7 +3798,7 @@ obj f_aset(CEnvironment *env)
     }
     else
     {
-        writeError("Argument not a and arrayview\n");
+        writeError(env, "Argument not a and arrayview\n");
         return MAKE_INTEGER(0);
     }
 }
@@ -3831,7 +3846,7 @@ obj f_closeFile(CEnvironment *env)
 
     if (!IS_INTEGER(arg0))
     {
-        writeError("First argument must be an integer\n");
+        writeError(env, "First argument must be an integer\n");
         return nil;
     }
 
@@ -3845,7 +3860,7 @@ obj f_write(CEnvironment *env)
 
     if (!IS_INTEGER(arg0))
     {
-        writeError("First argument must be an integer\n");
+        writeError(env, "First argument must be an integer\n");
         return nil;
     }
 
@@ -3915,7 +3930,7 @@ obj f_seek(CEnvironment *env)
 
     if (!IS_INTEGER(arg0))
     {
-        writeError("First argument must be an integer\n");
+        writeError(env, "First argument must be an integer\n");
         return nil;
     }
 
@@ -3935,7 +3950,7 @@ obj f_bit_and(CEnvironment *env)
 
     if (!IS_INTEGER(arg0) || !IS_INTEGER(arg1))
     {
-        writeError("First two arguments must be integers\n");
+        writeError(env, "First two arguments must be integers\n");
         return nil;
     }
 
@@ -3952,7 +3967,7 @@ obj f_bit_shift(CEnvironment *env)
 
     if (!IS_INTEGER(arg0) || !IS_INTEGER(arg1))
     {
-        writeError("First two arguments must be integers\n");
+        writeError(env, "First two arguments must be integers\n");
         return nil;
     }
 
@@ -3971,7 +3986,7 @@ obj f_sleep(CEnvironment *env)
 
     if (!IS_INTEGER(arg0) && !IS_REAL(arg0))
     {
-        writeError("First arguments must be a number\n");
+        writeError(env, "First arguments must be a number\n");
         return nil;
     }
 
@@ -3986,6 +4001,70 @@ obj f_sleep(CEnvironment *env)
     }
 
     return nil;
+}
+
+obj f_memory_copy(CEnvironment *env)
+{
+    obj arg0 = GET_ARG(env,0);
+    obj arg1 = GET_ARG(env,1);
+    obj arg2 = GET_ARG(env,2);
+    obj arg3 = GET_ARG(env,3);
+    obj arg4 = GET_ARG(env,4);
+
+    if (IS_OF_TYPE(arg0, &tArrayView) && IS_INTEGER(arg1) && IS_OF_TYPE(arg2, &tArrayView) && IS_INTEGER(arg3) && IS_INTEGER(arg4))
+    {
+        i64 off1 = GET_INTEGER(arg1);
+        i64 off2 = GET_INTEGER(arg3);
+        i64 count = GET_INTEGER(arg4);
+
+        CArrayView *a1 = (CArrayView *)GET_PTR(arg0);
+        CArrayView *a2 = (CArrayView *)GET_PTR(arg2);
+
+        if ((a1->stride == a1->element_size) && (a2->stride == a2->element_size))
+        {
+            i64 ptr1 = a1->first_element + a1->stride * off1;
+            i64 ptr2 = a2->first_element + a2->stride * off2;
+            memcpy((void *)ptr2, (void *)ptr1, a1->element_size * count);
+        }
+        else
+        {
+            for (i64 i = 0; i < count; i++)
+            {
+                i64 ptr1 = a1->first_element + a1->stride * i;
+                i64 ptr2 = a2->first_element + a2->stride * i;
+                memcpy((void *)ptr2, (void *)ptr1, a1->element_size);
+            }
+        }
+
+        return nil;
+    }
+#if 1
+    else if (IS_OF_TYPE(arg0, &tBuffer) && IS_INTEGER(arg1))
+    {
+        i64 i = GET_INTEGER(arg1);
+        CBuffer *a = (CBuffer *)GET_PTR(arg0);
+        a->val[i] = GET_INTEGER(arg2);
+        return MAKE_INTEGER(a->val[i]);
+    }
+#endif
+    else
+    {
+        writeError(env, "Argument not a and arrayview\n");
+        return MAKE_INTEGER(0);
+    }
+}
+
+obj f_int(CEnvironment *env)
+{
+    obj arg0 = GET_ARG(env,0);
+
+    if (!IS_INTEGER(arg0) && !IS_REAL(arg0))
+    {
+        writeError(env, "First arguments must be a number\n");
+        return nil;
+    }
+
+    return MAKE_INTEGER(GET_INTEGER_VALUE(arg0, 0));
 }
 
 void initLisp(void)
@@ -4058,6 +4137,9 @@ void initLisp(void)
     set_symbol_function(make_symbol("exp", -1), make_function(1,&f_exp, nil, nil));
     set_symbol_function(make_symbol("log", -1), make_function(1,&f_log, nil, nil));
     set_symbol_function(make_symbol("log10", -1), make_function(1,&f_log10, nil, nil));
+    set_symbol_function(make_symbol("floor", -1), make_function(1,&f_floor, nil, nil));
+    set_symbol_function(make_symbol("ceil", -1), make_function(1,&f_ceil, nil, nil));
+    set_symbol_function(make_symbol("round", -1), make_function(1,&f_round, nil, nil));
     set_symbol(make_symbol("pi", -1), MAKE_REAL(3.141592653589793));
     set_symbol(make_symbol("e", -1), MAKE_REAL(2.718281828459045));
     set_symbol_function(make_symbol("abs", -1), make_function(1,&f_abs, nil, nil));
@@ -4079,6 +4161,8 @@ void initLisp(void)
     set_symbol_function(make_symbol("bit-and", -1), make_function(1,&f_bit_and, nil, nil));
     set_symbol_function(make_symbol("bit-shift", -1), make_function(1,&f_bit_shift, nil, nil));
     set_symbol_function(make_symbol("sleep", -1), make_function(1,&f_sleep, nil, nil));
+    set_symbol_function(make_symbol("memory-copy", -1), make_function(1,&f_memory_copy, nil, nil));
+    set_symbol_function(make_symbol("int", -1), make_function(1,&f_int, nil, nil));
 }
 
 obj readInput(CEnvironment *env, CParseStatus *status, i64 fd, i64 readAll, i64 waitInput)
@@ -4139,7 +4223,7 @@ next_parse:
     {
         if (status->errorCode)
         {
-            writeError("Parse error:");
+            writeError(env, "Parse error:");
             writeNullTerminated(2, getErrorMessage(status->errorCode));
             write(2,"\n",1);
             writeNullTerminated(2,status->fileName);
