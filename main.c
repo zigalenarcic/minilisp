@@ -3449,6 +3449,22 @@ obj f_mod(CEnvironment *env)
     }
 }
 
+obj f_pow(CEnvironment *env)
+{
+    obj arg0 = GET_ARG(env,0);
+    obj arg1 = GET_ARG(env,1);
+
+    if (IS_NUMBER(arg0) && IS_NUMBER(arg1))
+    {
+        return MAKE_REAL(pow(GET_DOUBLE_VALUE(arg0, 0.0), GET_DOUBLE_VALUE(arg1, 0.0)));
+    }
+    else
+    {
+        writeNullTerminated(1,"Arguments not numbers\n");
+        return nil;
+    }
+}
+
 obj f_get_time(CEnvironment *env)
 {
     struct timeval tv;
@@ -4144,6 +4160,7 @@ void initLisp(void)
     set_symbol(make_symbol("e", -1), MAKE_REAL(2.718281828459045));
     set_symbol_function(make_symbol("abs", -1), make_function(1,&f_abs, nil, nil));
     set_symbol_function(make_symbol("mod", -1), make_function(1,&f_mod, nil, nil));
+    set_symbol_function(make_symbol("pow", -1), make_function(1,&f_pow, nil, nil));
     set_symbol_function(make_symbol("get-time", -1), make_function(1,&f_get_time, nil, nil));
     set_symbol_function(make_symbol("random-seed", -1), make_function(1,&f_random_seed, nil, nil));
     set_symbol_function(make_symbol("random", -1), make_function(1,&f_random, nil, nil));
