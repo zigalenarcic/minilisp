@@ -758,7 +758,6 @@ void printHeap(CMemoryHeap *heap)
 
     for (i64 i = 0; i < 10; i++)
     {
-        i64 total_size = 0;
         i64 count = 0;
         i64 used_count = 0;
         i64 parts = 0;
@@ -1889,7 +1888,7 @@ obj eval_function(obj f, obj args, CEnvironment *env)
         for (c_val = args, c_name = func->arglist; !IS_NIL(c_val) && !IS_NIL(c_name); c_val = CDR(c_val), c_name = CDR(c_name))
         {
             obj arg_value = eval(CAR(c_val), env);
-            obj arg_name = CAR(c_name);
+            //obj arg_name = CAR(c_name);
 
             PUSH_CALL_STACK(env, arg_value, MAKE_INTEGER(0));
 
@@ -1990,7 +1989,7 @@ obj eval(obj o, CEnvironment *env)
         if (s->has_global_value)
         {
             obj r = inc_ref(s->global_val);
-            return s->global_val;
+            return r;
         }
         else
         {
@@ -3849,10 +3848,11 @@ obj f_createFile(CEnvironment *env)
     moveMemory(tmp, ((CString *)GET_PTR(fileName))->val, len);
     tmp[len] = '\0';
 
-int ret = openFile(tmp, 0100 /*O_CREAT*/ | 2 /*O_RDWR*/ | 01000 /* O_TRUNC */, 0644);
+    int ret = openFile(tmp, 0100 /*O_CREAT*/ | 2 /*O_RDWR*/ | 01000 /* O_TRUNC */, 0644);
 
-if (ret < 0)
-    printf("<%s>err %s\n", tmp, strerror(errno));
+    if (ret < 0)
+        printf("<%s>err %s\n", tmp, strerror(errno));
+
     return MAKE_INTEGER(ret);
 }
 
@@ -3942,7 +3942,6 @@ obj f_seek(CEnvironment *env)
 {
     obj arg0 = GET_ARG(env,0);
     obj arg1 = GET_ARG(env,1);
-    obj arg2 = GET_ARG(env,2);
 
     if (!IS_INTEGER(arg0))
     {
@@ -4256,6 +4255,8 @@ next_parse:
 
     if (readAll)
         goto read_input;
+
+    return ret;
 }
 
 char *openFileName;
@@ -4281,10 +4282,12 @@ void __start(void)
     quitProcess(0);
 }
 
-void main(int argc, char *argv[])
+int main(int argc, char *argv[])
 {
     if (argc > 1)
         openFileName = argv[1];
 
     __start();
+
+    return 0;
 }
