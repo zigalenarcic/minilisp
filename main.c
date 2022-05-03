@@ -2043,6 +2043,63 @@ obj f_const(CEnvironment *env, obj args)
     return inc_ref(val);
 }
 
+obj f_enum(CEnvironment *env, obj args)
+{
+    i64 counter = 0;
+    obj ret_val = nil;
+
+    for (obj c = args; !IS_NIL(c); c = CDR(c))
+    {
+        if (IS_SYMBOL(CAR(c)))
+        {
+            obj sym = CAR(c);
+
+            CSymbol *s = (CSymbol *)GET_PTR(sym);
+
+            if (s->has_global_value)
+            {
+                dec_ref(s->global_val);
+            }
+            s->has_global_value = 1;
+            s->global_val = MAKE_INTEGER(counter);
+            ret_val = s->global_val;
+            counter++;
+        }
+        else if (IS_LIST(CAR(c)))
+        {
+            obj sym = CAR(CAR(c));
+            obj val = eval(CAR(CDR(CAR(c))), env);
+            if (!IS_INTEGER(val))
+            {
+                writeError(env, "Enum supports only integer values");
+                return nil;
+            }
+            else
+            {
+                counter = GET_INTEGER(val);
+
+                CSymbol *s = (CSymbol *)GET_PTR(sym);
+
+                if (s->has_global_value)
+                {
+                    dec_ref(s->global_val);
+                }
+                s->has_global_value = 1;
+                s->global_val = MAKE_INTEGER(counter);
+                ret_val = s->global_val;
+                counter++;
+            }
+        }
+        else
+        {
+            writeError(env, "Enum supports symbols and lists");
+            return nil;
+        }
+    }
+
+    return inc_ref(ret_val);
+}
+
 obj f_set(CEnvironment *env, obj args)
 {
     obj sym = CAR(args);
@@ -4111,6 +4168,7 @@ void initLisp(void)
     set_symbol_function(make_symbol("/", -1), make_function(1,&f_divide, nil, nil));
     set_symbol_function(make_symbol("int/", -1), make_function(1,&f_int_divide, nil, nil));
     set_symbol_function(make_symbol("const", -1), make_function(2,&f_const, nil, nil));
+    set_symbol_function(make_symbol("enum", -1), make_function(2,&f_enum, nil, nil));
     set_symbol_function(make_symbol("set", -1), make_function(2,&f_set, nil, nil));
     set_symbol_function(make_symbol("=", -1), make_function(2,&f_equals, nil, nil));
     set_symbol_function(make_symbol("not", -1), make_function(1,&f_not, nil, nil));
