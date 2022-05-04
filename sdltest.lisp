@@ -27,4 +27,5 @@
 
 (SDL_Delay 2000)
 (SDL_Quit)
+(quit)
 
