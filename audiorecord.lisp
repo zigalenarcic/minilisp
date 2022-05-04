@@ -1,4 +1,5 @@
 (load "portaudio.lisp")
+(load "glfw.lisp")
 (load "opengl.lisp")
 
 (set window-width 640)

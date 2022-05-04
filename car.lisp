@@ -6,6 +6,7 @@
 -- 2021 AD
 --
 
+(load "glfw.lisp")
 (load "opengl.lisp")
 
 (set w 50.0)
