@@ -393,6 +393,12 @@ i64 doubleToInt(double d)
     return tmp.i;
 }
 
+i64 floatToInt(float x)
+{
+    union { float x; i64 i; } tmp = { .x = x };
+    return tmp.i;
+}
+
 double intToDouble(i64 i)
 {
     union { double d; i64 i; } tmp = { .i = i };
@@ -2970,6 +2976,13 @@ obj f_ccall(CEnvironment *env)
                 else
                     stack[i_args_stack++] = doubleToInt(GET_INTEGER(arg));
             }
+            else if (type == symbol_f32)
+            {
+                if (i_regs_sse < 8)
+                    regs[6 + i_regs_sse++] = floatToInt(GET_INTEGER(arg));
+                else
+                    stack[i_args_stack++] = floatToInt(GET_INTEGER(arg));
+            }
         }
         else if (IS_REAL(arg))
         {
@@ -2986,6 +2999,13 @@ obj f_ccall(CEnvironment *env)
                     regs[6 + i_regs_sse++] = doubleToInt(GET_REAL(arg));
                 else
                     stack[i_args_stack++] = doubleToInt(GET_REAL(arg));
+            }
+            else if (type == symbol_f32)
+            {
+                if (i_regs_sse < 8)
+                    regs[6 + i_regs_sse++] = floatToInt(GET_REAL(arg));
+                else
+                    stack[i_args_stack++] = floatToInt(GET_REAL(arg));
             }
         }
         else if (IS_OF_TYPE(arg, &tStringType))

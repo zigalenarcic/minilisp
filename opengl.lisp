@@ -64,6 +64,7 @@
 (define-c-function lib-gl "glPushMatrix" n)
 (define-c-function lib-gl "glPopMatrix" n)
 (define-c-function lib-gl "glClear" '(i64))
+(define-c-function lib-gl "glClearColor" '(f32 f32 f32 f32))
 (define-c-function lib-gl "glLoadIdentity")
 (define-c-function lib-gl "glMatrixMode" '(i64))
 (define-c-function lib-gl "glTranslated" '(f64 f64 f64))
