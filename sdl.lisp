@@ -11,7 +11,7 @@
 (const SDL_INIT_EVENTS         0x00004000)
 (const SDL_INIT_SENSOR         0x00008000)
 (const SDL_INIT_NOPARACHUTE    0x00100000)  -- /**< compatibility; this flag is ignored. */
-(const SDL_INIT_EVERYTHING (+ SDL_INIT_TIMER  SDL_INIT_AUDIO  SDL_INIT_VIDEO  SDL_INIT_EVENTS
+(const SDL_INIT_EVERYTHING (| SDL_INIT_TIMER  SDL_INIT_AUDIO  SDL_INIT_VIDEO  SDL_INIT_EVENTS
                                    SDL_INIT_JOYSTICK  SDL_INIT_HAPTIC  SDL_INIT_GAMECONTROLLER  SDL_INIT_SENSOR))
 
 (define-c-function lib-sdl "SDL_Init" '(i64))
@@ -94,7 +94,7 @@
 (const SDL_AUDIO_ALLOW_FORMAT_CHANGE       0x00000002)
 (const SDL_AUDIO_ALLOW_CHANNELS_CHANGE     0x00000004)
 (const SDL_AUDIO_ALLOW_SAMPLES_CHANGE      0x00000008)
-(const SDL_AUDIO_ALLOW_ANY_CHANGE          (+ SDL_AUDIO_ALLOW_FREQUENCY_CHANGE SDL_AUDIO_ALLOW_FORMAT_CHANGE SDL_AUDIO_ALLOW_CHANNELS_CHANGE SDL_AUDIO_ALLOW_SAMPLES_CHANGE))
+(const SDL_AUDIO_ALLOW_ANY_CHANGE          (| SDL_AUDIO_ALLOW_FREQUENCY_CHANGE SDL_AUDIO_ALLOW_FORMAT_CHANGE SDL_AUDIO_ALLOW_CHANNELS_CHANGE SDL_AUDIO_ALLOW_SAMPLES_CHANGE))
 
 (define-c-function lib-sdl "SDL_GetNumAudioDrivers" n 'i32)
 (define-c-function lib-sdl "SDL_GetAudioDriver" '(i64) 'c-str)
@@ -140,9 +140,9 @@
 (define-c-function lib-sdl "SDL_GetQueuedAudioSize" '(i64))
 (define-c-function lib-sdl "SDL_ClearQueuedAudio" '(i64))
 
-(define-c-function lib-sdl "SDL_LockAudio" n)
+--(define-c-function lib-sdl "SDL_LockAudio" n) -- legacy
 (define-c-function lib-sdl "SDL_LockAudioDevice" '(i64))
-(define-c-function lib-sdl "SDL_UnlockAudio" n)
+--(define-c-function lib-sdl "SDL_UnlockAudio" n) -- legacy
 (define-c-function lib-sdl "SDL_UnlockAudioDevice" '(i64))
 
 (define-c-function lib-sdl "SDL_CloseAudio" n)
@@ -164,7 +164,7 @@
 (const SDL_WINDOW_INPUT_GRABBED  0x00000100)      -- /**< window has grabbed input focus */
 (const SDL_WINDOW_INPUT_FOCUS  0x00000200)        -- /**< window has input focus */
 (const SDL_WINDOW_MOUSE_FOCUS  0x00000400)        -- /**< window has mouse focus */
-(const SDL_WINDOW_FULLSCREEN_DESKTOP  (+ SDL_WINDOW_FULLSCREEN 0x00001000 ))
+(const SDL_WINDOW_FULLSCREEN_DESKTOP  (| SDL_WINDOW_FULLSCREEN 0x00001000))
 (const SDL_WINDOW_FOREIGN  0x00000800)            -- /**< window not created by SDL */
 (const SDL_WINDOW_ALLOW_HIGHDPI  0x00002000)      -- /**< window should be created in high-DPI mode if supported.
 -- On macOS NSHighResolutionCapable must be set true in the
@@ -180,7 +180,7 @@
 
  --*  \brief Used to indicate that you don't care what the window position is.
 (const SDL_WINDOWPOS_UNDEFINED_MASK    0x1FFF0000)
-(const SDL_WINDOWPOS_UNDEFINED         (+ SDL_WINDOWPOS_UNDEFINED_MASK 0))
+(const SDL_WINDOWPOS_UNDEFINED         (| SDL_WINDOWPOS_UNDEFINED_MASK 0))
 
 -- SDL_WindowEventID
 (enum

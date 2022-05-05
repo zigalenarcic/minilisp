@@ -3876,6 +3876,21 @@ obj f_array_ptr(CEnvironment *env)
     }
 }
 
+obj f_array_pointer(CEnvironment *env)
+{
+    if (IS_OF_TYPE(GET_ARG(env, 0), &tArrayView))
+    {
+        CArrayView *a = (CArrayView *)GET_PTR(GET_ARG(env, 0));
+
+        return MAKE_INTEGER(a->first_element);
+    }
+    else
+    {
+        writeError(env, "Arguments of wrong type\n");
+        return nil;
+    }
+}
+
 obj f_aget(CEnvironment *env)
 {
     obj arg0 = GET_ARG(env,0);
@@ -4067,21 +4082,58 @@ obj f_seek(CEnvironment *env)
     return MAKE_INTEGER(ret);
 }
 
-obj f_bit_and(CEnvironment *env)
+obj f_bit_or(CEnvironment *env)
 {
     obj arg0 = GET_ARG(env,0);
-    obj arg1 = GET_ARG(env,1);
 
-    if (!IS_INTEGER(arg0) || !IS_INTEGER(arg1))
+    if (!IS_INTEGER(arg0))
     {
-        writeError(env, "First two arguments must be integers\n");
+        writeError(env, "First argument must be an integer\n");
         return nil;
     }
 
-    i64 num = GET_INTEGER(arg0);
-    i64 mask = GET_INTEGER(arg1);
+    i64 ret = GET_INTEGER(arg0);
+    int argcount = GET_ARG_COUNT(env);
 
-    return MAKE_INTEGER(num & mask);
+    for (int i = 1; i < argcount; i++)
+    {
+        obj arg1 = GET_ARG(env,i);
+        if (!IS_INTEGER(arg1))
+        {
+            writeError(env, "Arguments must be integers\n");
+            return nil;
+        }
+        ret |= GET_INTEGER(arg1);
+    }
+
+    return MAKE_INTEGER(ret);
+}
+
+obj f_bit_and(CEnvironment *env)
+{
+    obj arg0 = GET_ARG(env,0);
+
+    if (!IS_INTEGER(arg0))
+    {
+        writeError(env, "First argument must be an integer\n");
+        return nil;
+    }
+
+    i64 ret = GET_INTEGER(arg0);
+    int argcount = GET_ARG_COUNT(env);
+
+    for (int i = 1; i < argcount; i++)
+    {
+        obj arg1 = GET_ARG(env,i);
+        if (!IS_INTEGER(arg1))
+        {
+            writeError(env, "Arguments must be integers\n");
+            return nil;
+        }
+        ret &= GET_INTEGER(arg1);
+    }
+
+    return MAKE_INTEGER(ret);
 }
 
 obj f_bit_shift(CEnvironment *env)
@@ -4274,10 +4326,11 @@ void initLisp(void)
     set_symbol_function(make_symbol("get-time", -1), make_function(1,&f_get_time, nil, nil));
     set_symbol_function(make_symbol("random-seed", -1), make_function(1,&f_random_seed, nil, nil));
     set_symbol_function(make_symbol("random", -1), make_function(1,&f_random, nil, nil));
-    set_symbol_function(make_symbol("print-address", -1), make_function(1,&f_print_address, nil, nil));
+    set_symbol_function(make_symbol("print-memory", -1), make_function(1,&f_print_address, nil, nil));
     set_symbol_function(make_symbol("buffer", -1), make_function(1,&f_buffer, nil, nil));
     set_symbol_function(make_symbol("array", -1), make_function(1,&f_array, nil, nil));
     set_symbol_function(make_symbol("array-view-ptr", -1), make_function(1,&f_array_ptr, nil, nil));
+    set_symbol_function(make_symbol("array-pointer", -1), make_function(1,&f_array_pointer, nil, nil));
     set_symbol_function(make_symbol("aget", -1), make_function(1,&f_aget, nil, nil));
     set_symbol_function(make_symbol("aset", -1), make_function(1,&f_aset, nil, nil));
     set_symbol_function(make_symbol("open", -1), make_function(1,&f_openFile, nil, nil));
@@ -4285,6 +4338,7 @@ void initLisp(void)
     set_symbol_function(make_symbol("close", -1), make_function(1,&f_closeFile, nil, nil));
     set_symbol_function(make_symbol("write", -1), make_function(1,&f_write, nil, nil));
     set_symbol_function(make_symbol("seek", -1), make_function(1,&f_seek, nil, nil));
+    set_symbol_function(make_symbol("|", -1), make_function(1,&f_bit_or, nil, nil));
     set_symbol_function(make_symbol("bit-and", -1), make_function(1,&f_bit_and, nil, nil));
     set_symbol_function(make_symbol("bit-shift", -1), make_function(1,&f_bit_shift, nil, nil));
     set_symbol_function(make_symbol("sleep", -1), make_function(1,&f_sleep, nil, nil));
