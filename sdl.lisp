@@ -14,14 +14,29 @@
 (const SDL_INIT_EVERYTHING (+ SDL_INIT_TIMER  SDL_INIT_AUDIO  SDL_INIT_VIDEO  SDL_INIT_EVENTS
                                    SDL_INIT_JOYSTICK  SDL_INIT_HAPTIC  SDL_INIT_GAMECONTROLLER  SDL_INIT_SENSOR))
 
-
 (define-c-function lib-sdl "SDL_Init" '(i64))
 (define-c-function lib-sdl "SDL_InitSubSystem" '(i64))
 (define-c-function lib-sdl "SDL_QuitSubSystem" '(i64))
 (define-c-function lib-sdl "SDL_WasInit" '(i64))
 (define-c-function lib-sdl "SDL_Quit" n)
 
+---------------
+-- SDL Error
+---------------
+-- extern DECLSPEC int SDLCALL SDL_SetError(SDL_PRINTF_FORMAT_STRING const char *fmt, ...) SDL_PRINTF_VARARG_FUNC(1);
+
+-- extern DECLSPEC const char *SDLCALL SDL_GetError(void);
+(define-c-function lib-sdl "SDL_GetError" n 'c-str)
+
+-- extern DECLSPEC char * SDLCALL SDL_GetErrorMsg(char *errstr, int maxlen);
+(define-c-function lib-sdl "SDL_GetErrorMsg" '(i64 i64) n)
+
+-- extern DECLSPEC void SDLCALL SDL_ClearError(void);
+(define-c-function lib-sdl "SDL_ClearError" n n)
+
+---------------
 -- SDL Timer
+---------------
 
 --extern DECLSPEC Uint32 SDLCALL SDL_GetTicks(void);
 (define-c-function lib-sdl "SDL_GetTicks" n)
@@ -39,7 +54,9 @@
 --extern DECLSPEC SDL_bool SDLCALL SDL_RemoveTimer(SDL_TimerID id);
 (define-c-function lib-sdl "SDL_RemoveTimer" '(i64))
 
+---------------
 -- SDL Audio
+---------------
 
 (const SDL_AUDIO_MASK_BITSIZE       0xFF)
 (const SDL_AUDIO_MASK_DATATYPE      (bit-shift 1 8))
@@ -79,16 +96,16 @@
 (const SDL_AUDIO_ALLOW_SAMPLES_CHANGE      0x00000008)
 (const SDL_AUDIO_ALLOW_ANY_CHANGE          (+ SDL_AUDIO_ALLOW_FREQUENCY_CHANGE SDL_AUDIO_ALLOW_FORMAT_CHANGE SDL_AUDIO_ALLOW_CHANNELS_CHANGE SDL_AUDIO_ALLOW_SAMPLES_CHANGE))
 
-(define-c-function lib-sdl "SDL_GetNumAudioDrivers" n)
-(define-c-function lib-sdl "SDL_GetAudioDriver" '(i64))
+(define-c-function lib-sdl "SDL_GetNumAudioDrivers" n 'i32)
+(define-c-function lib-sdl "SDL_GetAudioDriver" '(i64) 'c-str)
 
 --extern DECLSPEC const char *SDLCALL SDL_GetCurrentAudioDriver(void);
-(define-c-function lib-sdl "SDL_GetCurrentAudioDriver" n)
+(define-c-function lib-sdl "SDL_GetCurrentAudioDriver" n 'c-str)
 
 (define-c-function lib-sdl "SDL_OpenAudio" '(i64 i64))
 
 (define-c-function lib-sdl "SDL_GetNumAudioDevices" '(i64))
-(define-c-function lib-sdl "SDL_GetAudioDeviceName" '(i64 i64))
+(define-c-function lib-sdl "SDL_GetAudioDeviceName" '(i64 i64) 'c-str)
 (define-c-function lib-sdl "SDL_OpenAudioDevice" '(i64 i64 i64 i64 i64))
 
 -- SDL_AudioStatus
@@ -131,7 +148,9 @@
 (define-c-function lib-sdl "SDL_CloseAudio" n)
 (define-c-function lib-sdl "SDL_CloseAudioDevice" '(i64))
 
+---------------
 -- SDL Video
+---------------
 
 -- SDL_WindowFlags;
 (const SDL_WINDOW_FULLSCREEN  0x00000001)         -- /**< fullscreen window */

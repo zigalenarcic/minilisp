@@ -132,11 +132,12 @@ typedef struct {
     OBJ_FIELDS;
 
     //obj symbol_bound;
-    i64 function_type;
+    i64 function_type; // 1 - builtin function, 2 - builtin special form, 3 - defined function, 4 - defined macro, 5 - C foreign function
     void *f_ptr;
     obj arglist;
     obj body;
     obj argtypes;
+    obj rettype;
 } CFunction;
 
 typedef struct {
@@ -250,6 +251,7 @@ obj symbol_i64;
 obj symbol_u64;
 obj symbol_f32;
 obj symbol_f64;
+obj symbol_c_str;
 
 void printType(i64 fd, obj o);
 void printString(i64 fd, obj o);
@@ -1314,9 +1316,9 @@ obj make_string(const char *str, i64 len)
     s->length = len;
 
     moveMemory(s->val, str, len);
-    writeNullTerminated(1, "New string:");
+    /*writeNullTerminated(1, "New string:");
     write(1, s->val, s->length);
-    write(1, "\n", 1);
+    write(1, "\n", 1);*/
 
     obj o = OBJ_FROM_PTR(s, 0x03);
 
@@ -1419,6 +1421,23 @@ obj make_function(i64 function_type, void *f_ptr, obj definition, obj argtypes)
             f_obj->arglist = nil;
             f_obj->body = nil;
         }
+    }
+
+    return OBJ_FROM_PTR(f_obj, 0x05);
+}
+
+obj make_function_ext(i64 function_type, void *f_ptr, obj definition, obj argtypes, obj rettype)
+{
+    CFunction *f_obj = (CFunction *)allocateHeap(sizeof(CFunction), &globalHeap);
+    f_obj->ref_count = 1;
+    f_obj->function_type = function_type;
+    if ((function_type == 1) || (function_type == 2) || (function_type == 5))
+    {
+        f_obj->f_ptr = f_ptr;
+        f_obj->arglist = 0;
+        f_obj->body = 0;
+        f_obj->argtypes = inc_ref(argtypes);
+        f_obj->rettype = inc_ref(rettype);
     }
 
     return OBJ_FROM_PTR(f_obj, 0x05);
@@ -2939,6 +2958,7 @@ obj f_ccall(CEnvironment *env)
     obj f = GET_ARG(env,0);
     i64 ptr = (i64)((CFunction *)GET_PTR(f))->f_ptr;
     obj argtypes =  ((CFunction *)GET_PTR(f))->argtypes;
+    obj rettype =  ((CFunction *)GET_PTR(f))->rettype;
 
     i64 arg_count = GET_ARG_COUNT(env) - 1;
     /* regs[] will be copied to registers: rdi, rsi, rdx, rcx, r8, r9,
@@ -3057,7 +3077,18 @@ obj f_ccall(CEnvironment *env)
             "xmm12", "xmm13", "xmm14", "xmm15", "memory"
                 );
 
-    return MAKE_INTEGER(ret);
+    if (rettype == symbol_c_str)
+    {
+        return ret ? make_string((const char *)ret, -1) : nil;
+    }
+    else if (rettype == nil)
+    {
+        return nil;
+    }
+    else
+    {
+        return MAKE_INTEGER(ret);
+    }
 }
 
 obj f_define_c_callback(CEnvironment *env, obj args)
@@ -3375,7 +3406,8 @@ obj f_define_c_function(CEnvironment *env)
             {
                 obj bind_symbol = make_symbol(function, -1);
                 obj argtypes = (GET_ARG_COUNT(env) > 2) ? GET_ARG(env,2) : nil;
-                obj fun = make_function(5, symbol, nil, argtypes);
+                obj rettype = (GET_ARG_COUNT(env) > 3) ? GET_ARG(env,3) : symbol_i64;
+                obj fun = make_function_ext(5, symbol, nil, argtypes, rettype);
                 set_symbol_function(bind_symbol, fun);
                 //dec_ref(bind_symbol);
                 return inc_ref(fun);
@@ -3839,7 +3871,7 @@ obj f_array_ptr(CEnvironment *env)
     }
     else
     {
-        writeError(env, "Argument not a number\n");
+        writeError(env, "Arguments of wrong type\n");
         return MAKE_INTEGER(0);
     }
 }
@@ -4181,6 +4213,7 @@ void initLisp(void)
     symbol_u64 = make_symbol("u64", -1);
     symbol_f32 = make_symbol("f32", -1);
     symbol_f64 = make_symbol("f64", -1);
+    symbol_c_str = make_symbol("c-str", -1);
 
     set_symbol_function(make_symbol("+", -1), make_function(1,&f_plus, nil, nil));
     set_symbol_function(make_symbol("*", -1), make_function(1,&f_multiply, nil, nil));
