@@ -9,23 +9,23 @@
 (set *samplerate* 44100)
 (set *num-in-channels* 2)
 (set recording-active n)
-(set recording-buffers (array 'obj (* 24 3600)))
+(set recording-buffers (make-array (* 24 3600)))
 (set recording-buffers-count 0)
 (set recording-buffer-size (* *samplerate* *num-in-channels*))
 
-(set key-input (array 'obj 17))
+(set key-input (make-array 17))
 
-(set recording-overview-buffers (array 'obj (* 24 3600)))
+(set recording-overview-buffers (make-array (* 24 3600)))
 (set recording-overview-division 10)
-(set preview-div (array 'obj 6))
-(set preview-count (array 'obj 6))
+(set preview-div (make-array 6))
+(set preview-count (make-array 6))
 (aset preview-div 0 10)
 (aset preview-div 1 100)
 (aset preview-div 2 1000)
 (aset preview-div 3 10000)
 (aset preview-div 4 100000)
 (aset preview-div 5 (/ recording-buffer-size *num-in-channels*))
-(set preview-off (array 'obj 6))
+(set preview-off (make-array 6))
 (loop (i 0) (< i 6) (+ i 1)
       (aset preview-count i (int (ceil (/ (/ recording-buffer-size *num-in-channels*) (aget preview-div i)))))
       (aset preview-off i
@@ -51,11 +51,11 @@
 (set amplitude-r 0.0)
 
 (set buffer-in-size (* 2 1024 1024))
-(set buffer-in (array 'i16 buffer-in-size))
+(set buffer-in (make-array buffer-in-size 'i16))
 (set buffer-in-pos 0)
 
 (set buffer-out-size (* 2 1024 1024))
-(set buffer-out (array 'i16 buffer-out-size))
+(set buffer-out (make-array buffer-out-size 'i16))
 (set buffer-out-pos 0)
 (set buffer-out-write-pos 0)
 
@@ -338,8 +338,8 @@
 
 (function allocate-new-recording-buffer ()
           (print "Allocating new recording buffer idx " recording-buffers-count "\n")
-          (aset recording-buffers recording-buffers-count (array 'i16 recording-buffer-size))
-          (aset recording-overview-buffers recording-buffers-count (array 'i16 recording-overview-buffer-size))
+          (aset recording-buffers recording-buffers-count (make-array recording-buffer-size 'i16))
+          (aset recording-overview-buffers recording-buffers-count (make-array recording-overview-buffer-size 'i16))
           (print recording-buffers " rec buf \n")
           (print recording-overview-buffers " rec over buf \n")
 
@@ -354,8 +354,8 @@
 
           -- update with new data from recording thread etc.
           
-          (set freqs (array 'f64 17))
-          (set period (array 'obj 17))
+          (set freqs (make-array 17 'f64))
+          (set period (make-array 17))
           (loop (j 0) (< j 17) (+ j 1)
                 (aset freqs j (note-freq (+ (* octave 12) j)))
                 (aset period j (int (round (/ *samplerate* (aget freqs j)))))
@@ -456,11 +456,11 @@
           (define-c-callback pa-callback (symbol-function 'sound-callback))
 
           (Pa_Initialize)
-          (set str (array 'u64 1))
+          (set str (make-array 1 'u64))
           --(Pa_OpenDefaultStream str 2 0 paInt16 44100.0 512 (ccallback pa-callback) 0)
           (Pa_OpenDefaultStream str 0 2 paInt16 44100.0 512 (ccallback pa-callback) 0)
 
-          -- (set in-param (array 'u8 32))
+          -- (set in-param (make-array 32 'u8))
 
           -- (loop (i 0) (< i 32) (+ i 1)
           --       (aset in-param i 0))
@@ -468,7 +468,7 @@
           -- (aset in-param 4 2)
           -- (aset in-param 8 8)
 
-          -- (set out-param (array 'u8 32))
+          -- (set out-param (make-array 32 'u8))
 
           -- (loop (i 0) (< i 32) (+ i 1)
           --       (aset out-param i 0))

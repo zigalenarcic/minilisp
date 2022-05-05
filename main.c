@@ -531,7 +531,7 @@ void doWriteError(CEnvironment *env, const char *func, const char *text)
     {
         f_print_environment(env);
     }
-    write(2, "Error: ", 6);
+    write(2, "Error: ", 7);
     writeNullTerminated(2, func);
     write(2, ": ", 2);
     writeNullTerminated(2, text);
@@ -2036,8 +2036,8 @@ obj eval(obj o, CEnvironment *env)
         }
         else
         {
-            writeError(env, "Object not a function:");
-            printo(2,f);
+            writeError(env, "Symbol not bound to a function:");
+            printo(2,sym);
             write(2,"\n",1);
             return nil;
         }
@@ -3775,17 +3775,17 @@ const struct {
 };
 
 
-obj f_array(CEnvironment *env)
+obj f_make_array(CEnvironment *env)
 {
-    obj arg0 = GET_ARG(env,0);
-    obj arg1 = GET_ARG(env,1);
+    obj arg_count = GET_ARG(env,0);
+    obj arg_type = (GET_ARG_COUNT(env) > 1) ? GET_ARG(env,1) : symbol_obj; /* default type is obj */
 
-    if (IS_SYMBOL(arg0) && IS_NUMBER(arg1))
+    if (IS_SYMBOL(arg_type) && IS_NUMBER(arg_count))
     {
         i64 found_i = -1;
         for (i64 i = 0; i < sizeof(arrayViewData) / sizeof(arrayViewData[0]); i++)
         {
-            if (arg0 == *arrayViewData[i].sym)
+            if (arg_type == *arrayViewData[i].sym)
             {
                 found_i = i;
                 break;
@@ -3798,7 +3798,7 @@ obj f_array(CEnvironment *env)
             return MAKE_INTEGER(0);
         }
 
-        i64 count = GET_INTEGER_VALUE(arg1, 0);
+        i64 count = GET_INTEGER_VALUE(arg_count, 0);
         i64 buffer_size = count * arrayViewData[found_i].element_size;
 
         obj b = make_buffer(buffer_size);
@@ -4328,7 +4328,7 @@ void initLisp(void)
     set_symbol_function(make_symbol("random", -1), make_function(1,&f_random, nil, nil));
     set_symbol_function(make_symbol("print-memory", -1), make_function(1,&f_print_address, nil, nil));
     set_symbol_function(make_symbol("buffer", -1), make_function(1,&f_buffer, nil, nil));
-    set_symbol_function(make_symbol("array", -1), make_function(1,&f_array, nil, nil));
+    set_symbol_function(make_symbol("make-array", -1), make_function(1,&f_make_array, nil, nil));
     set_symbol_function(make_symbol("array-view-ptr", -1), make_function(1,&f_array_ptr, nil, nil));
     set_symbol_function(make_symbol("array-pointer", -1), make_function(1,&f_array_pointer, nil, nil));
     set_symbol_function(make_symbol("aget", -1), make_function(1,&f_aget, nil, nil));
