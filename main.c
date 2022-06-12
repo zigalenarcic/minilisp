@@ -2389,6 +2389,29 @@ obj f_rest(CEnvironment *env)
     return inc_ref(CDR(GET_ARG(env, 0)));
 }
 
+obj f_nth(CEnvironment *env)
+{
+    obj arg0 = GET_ARG(env,0);
+    obj arg1 = GET_ARG(env,1);
+
+    if (!IS_INTEGER(arg1) || !IS_LIST(arg0))
+    {
+        writeError(env, "Wrong types of arguments");
+        return nil;
+    }
+
+    i64 count = 0;
+    i64 pos = GET_INTEGER(arg1);
+
+    for (obj c = arg0; !IS_NIL(c); c = CDR(c))
+    {
+        if (count++ == pos)
+            return inc_ref(CAR(c));
+    }
+
+    return nil;
+}
+
 obj f_quote(CEnvironment *env, obj args)
 {
     return CAR(args);
@@ -4289,6 +4312,7 @@ void initLisp(void)
     set_symbol_function(make_symbol("pop", -1), make_function(2,&f_pop, nil, nil));
     set_symbol_function(make_symbol("first", -1), make_function(1,&f_first, nil, nil));
     set_symbol_function(make_symbol("rest", -1), make_function(1,&f_rest, nil, nil));
+    set_symbol_function(make_symbol("nth", -1), make_function(1,&f_nth, nil, nil));
     set_symbol_function(symbol_quote, make_function(2,&f_quote, nil, nil));
     set_symbol_function(make_symbol("if", -1), make_function(2,&f_if, nil, nil));
     set_symbol_function(make_symbol("do", -1), make_function(2,&f_do, nil, nil));
