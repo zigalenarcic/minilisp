@@ -117,7 +117,7 @@
           (if (not (= output 0))
             (do
               -- output
-              (set av-out (array-view-ptr 'i16 sample-count output))
+              (set av-out (array-view-from-pointer 'i16 sample-count output))
 
               (if (> (+ buffer-out-pos sample-count) buffer-out-size)
                 (do

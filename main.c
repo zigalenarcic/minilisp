@@ -3849,7 +3849,7 @@ obj f_make_array(CEnvironment *env)
     }
 }
 
-obj f_array_ptr(CEnvironment *env)
+obj f_array_view_from_pointer(CEnvironment *env)
 {
     obj arg0 = GET_ARG(env,0);
     obj arg1 = GET_ARG(env,1);
@@ -4353,7 +4353,7 @@ void initLisp(void)
     set_symbol_function(make_symbol("print-memory", -1), make_function(1,&f_print_address, nil, nil));
     set_symbol_function(make_symbol("buffer", -1), make_function(1,&f_buffer, nil, nil));
     set_symbol_function(make_symbol("make-array", -1), make_function(1,&f_make_array, nil, nil));
-    set_symbol_function(make_symbol("array-view-ptr", -1), make_function(1,&f_array_ptr, nil, nil));
+    set_symbol_function(make_symbol("array-view-from-pointer", -1), make_function(1,&f_array_view_from_pointer, nil, nil));
     set_symbol_function(make_symbol("array-pointer", -1), make_function(1,&f_array_pointer, nil, nil));
     set_symbol_function(make_symbol("aget", -1), make_function(1,&f_aget, nil, nil));
     set_symbol_function(make_symbol("aset", -1), make_function(1,&f_aset, nil, nil));

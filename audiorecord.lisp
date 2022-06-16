@@ -106,7 +106,7 @@
           --(print "frame count: " frameCount "\n")
           --(print "input " (hex input) "\n")
           (set sample-count (* 2 frameCount))
-          (set av (array-view-ptr 'i16 sample-count input))
+          (set av (array-view-from-pointer 'i16 sample-count input))
 
           (set free-count (- buffer-in-size buffer-in-pos))
 
@@ -127,7 +127,7 @@
           (if (not (= output 0))
             (do
               -- output
-              (set av-out (array-view-ptr 'i16 sample-count output))
+              (set av-out (array-view-from-pointer 'i16 sample-count output))
 
               (if (> (+ buffer-out-pos sample-count) buffer-out-size)
                 (do
