@@ -27,14 +27,10 @@
 (set wheel-angle 0.0)
 (set camera 0)
 
-(function second (x) (first (rest x)))
-(function third (x) (first (rest (rest x))))
 (function gauss-random () (- (/ (+
                                   (random) (random) (random) (random) (random)
                                   (random) (random) (random) (random) (random)
                                   ) 10.0) 0.5))
-
-(function abs (x) (if (< x 0) (- x) x))
 
 (set lane-width 200)
 (set road-x 0.0)
