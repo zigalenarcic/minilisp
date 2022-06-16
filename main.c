@@ -2449,6 +2449,83 @@ obj f_fourth(CEnvironment *env)
     }
 }
 
+obj f_fifth(CEnvironment *env)
+{
+    obj arg0 = GET_ARG(env,0);
+    if (IS_LIST(arg0) && !IS_NIL(CDR(arg0)) && !IS_NIL(CDR(CDR(arg0))) && !IS_NIL(CDR(CDR(CDR(arg0))))
+             && !IS_NIL(CDR(CDR(CDR(CDR(arg0))))))
+    {
+        return inc_ref(CAR(CDR(CDR(CDR(CDR(arg0))))));
+    }
+    else
+    {
+        writeError(env, "nil");
+        return nil;
+    }
+}
+
+obj f_sixth(CEnvironment *env)
+{
+    obj arg0 = GET_ARG(env,0);
+    if (IS_LIST(arg0) && !IS_NIL(CDR(arg0)) && !IS_NIL(CDR(CDR(arg0))) && !IS_NIL(CDR(CDR(CDR(arg0))))
+             && !IS_NIL(CDR(CDR(CDR(CDR(arg0))))) && !IS_NIL(CDR(CDR(CDR(CDR(CDR(arg0)))))))
+    {
+        return inc_ref(CAR(CDR(CDR(CDR(CDR(CDR(arg0)))))));
+    }
+    else
+    {
+        writeError(env, "nil");
+        return nil;
+    }
+}
+
+obj f_seventh(CEnvironment *env)
+{
+    obj arg0 = GET_ARG(env,0);
+    if (IS_LIST(arg0) && !IS_NIL(CDR(arg0)) && !IS_NIL(CDR(CDR(arg0))) && !IS_NIL(CDR(CDR(CDR(arg0))))
+             && !IS_NIL(CDR(CDR(CDR(CDR(arg0))))) && !IS_NIL(CDR(CDR(CDR(CDR(CDR(arg0)))))) && !IS_NIL(CDR(CDR(CDR(CDR(CDR(CDR(arg0))))))))
+    {
+        return inc_ref(CAR(CDR(CDR(CDR(CDR(CDR(CDR(arg0))))))));
+    }
+    else
+    {
+        writeError(env, "nil");
+        return nil;
+    }
+}
+
+obj f_eighth(CEnvironment *env)
+{
+    obj arg0 = GET_ARG(env,0);
+    if (IS_LIST(arg0) && !IS_NIL(CDR(arg0)) && !IS_NIL(CDR(CDR(arg0))) && !IS_NIL(CDR(CDR(CDR(arg0))))
+             && !IS_NIL(CDR(CDR(CDR(CDR(arg0))))) && !IS_NIL(CDR(CDR(CDR(CDR(CDR(arg0)))))) && !IS_NIL(CDR(CDR(CDR(CDR(CDR(CDR(arg0)))))))
+             && !IS_NIL(CDR(CDR(CDR(CDR(CDR(CDR(CDR(arg0)))))))))
+    {
+        return inc_ref(CAR(CDR(CDR(CDR(CDR(CDR(CDR(CDR(arg0)))))))));
+    }
+    else
+    {
+        writeError(env, "nil");
+        return nil;
+    }
+}
+
+obj f_ninth(CEnvironment *env)
+{
+    obj arg0 = GET_ARG(env,0);
+    if (IS_LIST(arg0) && !IS_NIL(CDR(arg0)) && !IS_NIL(CDR(CDR(arg0))) && !IS_NIL(CDR(CDR(CDR(arg0))))
+             && !IS_NIL(CDR(CDR(CDR(CDR(arg0))))) && !IS_NIL(CDR(CDR(CDR(CDR(CDR(arg0)))))) && !IS_NIL(CDR(CDR(CDR(CDR(CDR(CDR(arg0)))))))
+             && !IS_NIL(CDR(CDR(CDR(CDR(CDR(CDR(CDR(arg0)))))))) && !IS_NIL(CDR(CDR(CDR(CDR(CDR(CDR(CDR(CDR(arg0))))))))))
+    {
+        return inc_ref(CAR(CDR(CDR(CDR(CDR(CDR(CDR(CDR(CDR(arg0))))))))));
+    }
+    else
+    {
+        writeError(env, "nil");
+        return nil;
+    }
+}
+
 obj f_nth(CEnvironment *env)
 {
     obj arg0 = GET_ARG(env,0);
@@ -4515,6 +4592,11 @@ void initLisp(void)
     set_symbol_function(make_symbol("second", -1), make_function(1,&f_second, nil, nil));
     set_symbol_function(make_symbol("third", -1), make_function(1,&f_third, nil, nil));
     set_symbol_function(make_symbol("fourth", -1), make_function(1,&f_fourth, nil, nil));
+    set_symbol_function(make_symbol("fifth", -1), make_function(1,&f_fifth, nil, nil));
+    set_symbol_function(make_symbol("sixth", -1), make_function(1,&f_sixth, nil, nil));
+    set_symbol_function(make_symbol("seventh", -1), make_function(1,&f_seventh, nil, nil));
+    set_symbol_function(make_symbol("eighth", -1), make_function(1,&f_eighth, nil, nil));
+    set_symbol_function(make_symbol("ninth", -1), make_function(1,&f_ninth, nil, nil));
     set_symbol_function(make_symbol("nth", -1), make_function(1,&f_nth, nil, nil));
     set_symbol_function(symbol_quote, make_function(2,&f_quote, nil, nil));
     set_symbol_function(make_symbol("if", -1), make_function(2,&f_if, nil, nil));
