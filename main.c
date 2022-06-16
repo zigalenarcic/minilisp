@@ -4041,6 +4041,12 @@ obj f_aget(CEnvironment *env)
         obj o = MAKE_INTEGER(a->val[GET_INTEGER(arg1)]);
         return o;
     }
+    else if (IS_OF_TYPE(arg0, &tStringType) && IS_INTEGER(arg1))
+    {
+        CString *a = (CString *)GET_PTR(arg0);
+        obj o = MAKE_INTEGER(a->val[GET_INTEGER(arg1)]);
+        return o;
+    }
     else
     {
         writeError(env, "Argument not a and arrayview\n");
@@ -4065,8 +4071,31 @@ obj f_aset(CEnvironment *env)
     {
         i64 i = GET_INTEGER(arg1);
         CBuffer *a = (CBuffer *)GET_PTR(arg0);
-        a->val[i] = GET_INTEGER(arg2);
-        return MAKE_INTEGER(a->val[i]);
+        if (i < a->length)
+        {
+            a->val[i] = GET_INTEGER(arg2);
+            return MAKE_INTEGER(a->val[i]);
+        }
+        else
+        {
+            writeError(env, "Out of bounds");
+            return nil;
+        }
+    }
+    else if (IS_OF_TYPE(arg0, &tStringType) && IS_INTEGER(arg1))
+    {
+        i64 i = GET_INTEGER(arg1);
+        CString *a = (CString *)GET_PTR(arg0);
+        if (i < a->length)
+        {
+            a->val[i] = GET_INTEGER(arg2);
+            return MAKE_INTEGER(a->val[i]);
+        }
+        else
+        {
+            writeError(env, "Out of bounds");
+            return nil;
+        }
     }
     else
     {
