@@ -2569,6 +2569,43 @@ obj f_loop(CEnvironment *env, obj args)
     return nil;
 }
 
+obj f_loop_list(CEnvironment *env, obj args)
+{
+    obj init_form = CAR(args);
+    obj body_form = CDR(args);
+
+    if (!IS_LIST(init_form))
+    {
+        writeError(env, "First form must be a list");
+        return nil;
+    }
+
+    obj variable = CAR(init_form);
+
+    if (!IS_SYMBOL(variable))
+    {
+        writeError(env, "Variable not a symbol");
+        return nil;
+    }
+
+    obj list = eval(CAR(CDR(init_form)), env);
+
+
+    for (obj c = list; !IS_NIL(c); c = CDR(c))
+    {
+        set_symbol(variable, inc_ref(CAR(c)));
+
+        {
+            obj ret = eval_body(body_form, env);
+            dec_ref(ret);
+        }
+
+        // TODO unset variable
+    }
+
+    return nil;
+}
+
 obj f_function(CEnvironment *env, obj args)
 {
     if (IS_SYMBOL(CAR(args)) && !IS_NIL(CAR(args)))
@@ -4435,6 +4472,7 @@ void initLisp(void)
     set_symbol_function(make_symbol("do", -1), make_function(2,&f_do, nil, nil));
     set_symbol_function(make_symbol("while", -1), make_function(2,&f_while, nil, nil));
     set_symbol_function(make_symbol("loop", -1), make_function(2,&f_loop, nil, nil));
+    set_symbol_function(make_symbol("loop-list", -1), make_function(2,&f_loop_list, nil, nil));
     set_symbol_function(make_symbol("print", -1), make_function(1,&f_print, nil, nil));
     set_symbol_function(make_symbol("hex", -1), make_function(1,&f_hex, nil, nil));
     set_symbol_function(make_symbol("function", -1), make_function(2,&f_function, nil, nil));
