@@ -3959,13 +3959,26 @@ obj f_array_view_from_pointer(CEnvironment *env)
     }
 }
 
-obj f_array_pointer(CEnvironment *env)
+obj f_buffer_pointer(CEnvironment *env)
 {
-    if (IS_OF_TYPE(GET_ARG(env, 0), &tArrayView))
+    obj arg0 = GET_ARG(env,0);
+    if (IS_OF_TYPE(arg0, &tArrayView))
     {
-        CArrayView *a = (CArrayView *)GET_PTR(GET_ARG(env, 0));
+        CArrayView *a = (CArrayView *)GET_PTR(arg0);
 
         return MAKE_INTEGER(a->first_element);
+    }
+    else if (IS_OF_TYPE(arg0, &tStringType))
+    {
+        CString *a = (CString *)GET_PTR(arg0);
+
+        return MAKE_INTEGER((i64)a->val);
+    }
+    else if (IS_OF_TYPE(arg0, &tBuffer))
+    {
+        CBuffer *a = (CBuffer *)GET_PTR(arg0);
+
+        return MAKE_INTEGER((i64)a->val);
     }
     else
     {
@@ -4022,6 +4035,47 @@ obj f_aset(CEnvironment *env)
     {
         writeError(env, "Argument not a and arrayview\n");
         return MAKE_INTEGER(0);
+    }
+}
+
+obj f_length(CEnvironment *env)
+{
+    obj arg0 = GET_ARG(env,0);
+    if (IS_NIL(arg0))
+    {
+        return MAKE_INTEGER(0);
+    }
+    else if (IS_LIST(arg0))
+    {
+        i64 count = 0;
+        for (obj c = arg0; !IS_NIL(c); c = CDR(c))
+        {
+            count++;
+        }
+        return MAKE_INTEGER(count);
+    }
+    else if (IS_OF_TYPE(arg0, &tArrayView))
+    {
+        CArrayView *a = (CArrayView *)GET_PTR(arg0);
+
+        return MAKE_INTEGER(a->count);
+    }
+    else if (IS_OF_TYPE(arg0, &tStringType))
+    {
+        CString *a = (CString *)GET_PTR(arg0);
+
+        return MAKE_INTEGER((i64)a->length);
+    }
+    else if (IS_OF_TYPE(arg0, &tBuffer))
+    {
+        CBuffer *a = (CBuffer *)GET_PTR(arg0);
+
+        return MAKE_INTEGER((i64)a->length);
+    }
+    else
+    {
+        writeError(env, "Arguments of wrong type\n");
+        return nil;
     }
 }
 
@@ -4417,9 +4471,10 @@ void initLisp(void)
     set_symbol_function(make_symbol("buffer", -1), make_function(1,&f_buffer, nil, nil));
     set_symbol_function(make_symbol("make-array", -1), make_function(1,&f_make_array, nil, nil));
     set_symbol_function(make_symbol("array-view-from-pointer", -1), make_function(1,&f_array_view_from_pointer, nil, nil));
-    set_symbol_function(make_symbol("array-pointer", -1), make_function(1,&f_array_pointer, nil, nil));
+    set_symbol_function(make_symbol("buffer-pointer", -1), make_function(1,&f_buffer_pointer, nil, nil));
     set_symbol_function(make_symbol("aget", -1), make_function(1,&f_aget, nil, nil));
     set_symbol_function(make_symbol("aset", -1), make_function(1,&f_aset, nil, nil));
+    set_symbol_function(make_symbol("length", -1), make_function(1,&f_length, nil, nil));
     set_symbol_function(make_symbol("open", -1), make_function(1,&f_openFile, nil, nil));
     set_symbol_function(make_symbol("create-file", -1), make_function(1,&f_createFile, nil, nil));
     set_symbol_function(make_symbol("close", -1), make_function(1,&f_closeFile, nil, nil));
