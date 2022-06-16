@@ -3714,6 +3714,11 @@ unsigned long int GetRandom(void)
     return (unsigned long int)(random_seed ^ (random_seed >> 17)) ^ (random_seed << 19);
 }
 
+double GetRandomDouble(void)
+{
+    return (double)GetRandom() / (double)0xffffffffffffffffull;
+}
+
 obj f_random_seed(CEnvironment *env)
 {
     obj arg0 = GET_ARG(env,0);
@@ -3736,7 +3741,7 @@ obj f_random(CEnvironment *env)
 
     if (GET_ARG_COUNT(env) < 1)
     {
-        return MAKE_REAL((double)GetRandom() / (double)0xffffffffffffffffull);
+        return MAKE_REAL(GetRandomDouble());
     }
     else if (IS_INTEGER(arg0))
     {
@@ -3748,13 +3753,28 @@ obj f_random(CEnvironment *env)
     }
     else if (IS_REAL(arg0))
     {
-        return MAKE_REAL(((double)GetRandom() / (double)0xffffffffffffffffull) * GET_REAL(arg0));
+        return MAKE_REAL(GetRandomDouble() * GET_REAL(arg0));
     }
     else
     {
         writeError(env, "Argument not a number\n");
         return MAKE_INTEGER(0);
     }
+}
+
+obj f_random_gauss(CEnvironment *env)
+{
+    double x, y;
+    double r_squared;
+    do {
+        x = -1.0 + 2.0 * GetRandomDouble();
+        y = -1.0 + 2.0 * GetRandomDouble();
+        r_squared = x * x + y * y;
+    } while (r_squared >= 1.0 || r_squared == 0.0);
+
+    double fac = sqrt(-2.0 * log(r_squared) / r_squared);
+
+    return MAKE_REAL(y * fac);
 }
 
 obj f_print_address(CEnvironment *env)
@@ -4534,6 +4554,7 @@ void initLisp(void)
     set_symbol_function(make_symbol("get-time", -1), make_function(1,&f_get_time, nil, nil));
     set_symbol_function(make_symbol("random-seed", -1), make_function(1,&f_random_seed, nil, nil));
     set_symbol_function(make_symbol("random", -1), make_function(1,&f_random, nil, nil));
+    set_symbol_function(make_symbol("random-gauss", -1), make_function(1,&f_random_gauss, nil, nil));
     set_symbol_function(make_symbol("print-memory", -1), make_function(1,&f_print_address, nil, nil));
     set_symbol_function(make_symbol("buffer", -1), make_function(1,&f_buffer, nil, nil));
     set_symbol_function(make_symbol("make-array", -1), make_function(1,&f_make_array, nil, nil));

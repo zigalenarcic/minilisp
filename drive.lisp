@@ -27,11 +27,6 @@
 (set wheel-angle 0.0)
 (set camera 0)
 
-(function gauss-random () (- (/ (+
-                                  (random) (random) (random) (random) (random)
-                                  (random) (random) (random) (random) (random)
-                                  ) 10.0) 0.5))
-
 (set lane-width 200)
 (set road-x 0.0)
 (set road-y 0.0)
@@ -42,7 +37,7 @@
 (set list-c n)
 
 (loop (i 0) (< i 10) (+ i 1)
-      (set len (* 2000.0 (+ 1.0 (abs (gauss-random)))))
+      (set len (* 2000.0 (+ 1.0 (abs (random-gauss)))))
       (set off (* 0.0015 (- (random) 0.5)))
       (print "Segment: len " len " off " off "\n")
 
