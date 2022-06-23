@@ -2587,7 +2587,7 @@ obj f_nth(CEnvironment *env)
 
 obj f_quote(CEnvironment *env, obj args)
 {
-    return CAR(args);
+    return inc_ref(CAR(args));
 }
 
 obj f_if(CEnvironment *env, obj args)
@@ -2715,6 +2715,8 @@ obj f_loop_list(CEnvironment *env, obj args)
 
         // TODO unset variable
     }
+
+    dec_ref(list);
 
     return nil;
 }
