@@ -188,7 +188,7 @@
           (set steering-amount (* 0.4 (+ 3.0 steering-time) time-delta))
 
           (if (= (aget *keyboard-state* SDL_SCANCODE_LEFT) 1)
-            (do 
+            (do
               (if (not steering-input) (set steering-input 1))
               (if (> input-steering 0.0)
                 (set input-steering (- input-steering (* 2.5 steering-amount)))
@@ -265,7 +265,7 @@
           (glTranslated 0.0 0.0 80.0)
 
           (glColor3d 1.0 0.0 1.0)
-          
+
           (glPushMatrix)
           (glRotated (* -180.0 (/ car-angle pi))  0.0 0.0 1.0)
           (glRotated 90.0 0.0 0.0 1.0)
@@ -389,37 +389,8 @@
 
           (glPopMatrix)
 
-          (glPushMatrix)
-
-          --(glTranslated (* 0.5 window-width) (* 0.5 window-height) 0.0)
-          --(glScaled 1.0 -1.0 1.0)
-
-          -- draw sky
-
-          --(glBegin GL_QUADS)
-          --(glColor3d 0.0 0.0 1.0)
-          --(glVertex3d 0.0 0.0 0.0)
-          --(glVertex3d window-width 0.0 0.0)
-          --(glColor3d 0.0 1.0 1.0)
-          --(glVertex3d window-width (* 0.5 window-height) 0.0)
-          --(glVertex3d 0.0 (* 0.5 window-height) 0.0)
-          --(glEnd)
-
-          -- draw road
-          --(glBegin GL_LINES)
-          --(glColor3d 0.9 0.5 0.0)
-          --(loop (y (* 0.5 window-height)) (<= y window-height) (+ y 1)
-                  --      (glVertex3d 0 y 0.0)
-                  --      (glVertex3d 200 y 0.0)
-                  --      )
-          --(glEnd)
-
-          --(draw-rectangle 0.0 0.0 50.0 24.0)
-          --(draw-rectangle 0.0 0.0 50.0 24.0)
-
-          (glPopMatrix)
-
           -- 2D drawing overlay
+          (glDisable GL_DEPTH_TEST)
           (glMatrixMode GL_PROJECTION)
           (glLoadIdentity)
           (glOrtho 0.0 (* 1.0 window-width) (* 1.0 window-height) 0.0 -1.0 1.0)
@@ -429,6 +400,7 @@
 
           -- draw controls
           (glColor3d 0.0 0.0 1.0)
+
           (draw-rectangle (+ (* 0.5 window-width) (* input-steering 0.5 window-width)) 30.0 20.0 20.0)
 
           (glColor3d 1.0 1.0 0.5)
@@ -467,7 +439,7 @@
           (SDL_Init SDL_INIT_VIDEO)
           --(SDL_GL_SetAttribute SDL_GL_MULTISAMPLEBUFFERS 1)
           --(SDL_GL_SetAttribute SDL_GL_MULTISAMPLESAMPLES 4)
-          (set *window* (SDL_CreateWindow "Drive\0" 
+          (set *window* (SDL_CreateWindow "Drive\0"
                                           SDL_WINDOWPOS_UNDEFINED SDL_WINDOWPOS_UNDEFINED
                                           window-width window-height (+ SDL_WINDOW_OPENGL SDL_WINDOW_RESIZABLE)))
 
