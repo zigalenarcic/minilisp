@@ -552,11 +552,16 @@ void initHeap(CMemoryHeap *heap)
     heap->pLargeAllocations = NULL;
 }
 
+//#define DEBUG_ALLOC
+//#define DEBUG_REFCOUNT
+
 i64 allocateHeap(i64 size, CMemoryHeap *heap)
 {
-    /*writeNullTerminated(1, "allocate: ");
-      writeNumber(1, size);
-      write(1," ",1);*/
+#ifdef DEBUG_ALLOC
+    writeNullTerminated(1, "allocate: ");
+    writeNumber(1, size);
+    write(1," ",1);
+#endif
 
     i64 i = 0;
     if (size <= bucketSizes[0]) i = 0;
@@ -590,14 +595,18 @@ i64 allocateHeap(i64 size, CMemoryHeap *heap)
         mem[1] = allocationSize;
         heap->pLargeAllocations = mem; /* insert at the front */
 
-        /*writeNumberHex(1, (i64)&mem[2]);
-          write(1,"\n",1);*/
+#ifdef DEBUG_ALLOC
+        writeNumberHex(1, (i64)&mem[2]);
+        write(1,"\n",1);
+#endif
         return (i64)&mem[2];
     }
 
-    /*writeNullTerminated(1, " bucket ");
-      writeNumber(1, i);
-      write(1, " ", 1);*/
+#ifdef DEBUG_ALLOC
+    writeNullTerminated(1, " bucket ");
+    writeNumber(1, i);
+    write(1, " ", 1);
+#endif
 
     i64 bucketSize = bucketSizes[i];
     i64 *cur_part = heap->pStorage[i]; /* 0 next, 1 allocation size, 2 first free, 3 free count, 4 all count */
@@ -623,10 +632,12 @@ i64 allocateHeap(i64 size, CMemoryHeap *heap)
                 return 0;
             }
 
-            /*writeNumberHex(1, addr);
-              write(1," free ",1);
-              writeNumber(1, cur_part[3]);
-              write(1,"\n",1);*/
+#ifdef DEBUG_ALLOC
+            writeNumberHex(1, addr);
+            writeNullTerminated(1," free ");
+            writeNumber(1, cur_part[3]);
+            write(1,"\n",1);
+#endif
             return addr;
         }
 
@@ -659,16 +670,20 @@ i64 allocateHeap(i64 size, CMemoryHeap *heap)
     }
     heap->pStorage[i] = part;
 
-    /*writeNumberHex(1, (i64)part + 40);
-      write(1," new part\n",1);*/
+#ifdef DEBUG_ALLOC
+    writeNumberHex(1, (i64)part + 40);
+    writeNullTerminated(1," new part\n");
+#endif
     return (i64)part + 40;
 }
 
 void freeHeap(i64 addr, CMemoryHeap *heap)
 {
-    /*writeNullTerminated(1, "free: ");
-      writeNumberHex(1, addr);
-      write(1," ",1);*/
+#ifdef DEBUG_ALLOC
+    writeNullTerminated(1, "free: ");
+    writeNumberHex(1, addr);
+    write(1," ",1);
+#endif
 
     for (i64 i = 0; i < 10; i++)
     {
@@ -695,13 +710,17 @@ void freeHeap(i64 addr, CMemoryHeap *heap)
                 }
                 /* add it to the front of the free list */
                 *(i64 *)addr = cur_part[2];
-                /*writeNullTerminated(1, " next free was ");
-                  writeNumberHex(1, *(i64 *)addr);*/
+#ifdef DEBUG_ALLOC
+                writeNullTerminated(1, " next free was ");
+                writeNumberHex(1, *(i64 *)addr);
+#endif
                 cur_part[2] = addr;
                 cur_part[3]++;
 
-                /*writeNullTerminated(1, " bucket ");
-                  writeNumber(1, i);*/
+#ifdef DEBUG_ALLOC
+                writeNullTerminated(1, " bucket ");
+                writeNumber(1, i);
+#endif
 
                 if (cur_part[3] == cur_part[4])
                 {
@@ -711,12 +730,16 @@ void freeHeap(i64 addr, CMemoryHeap *heap)
                     else
                         heap->pStorage[i] = (i64 *)cur_part[0];
 
-                    /*writeNullTerminated(1, " removing part size ");
-                      writeNumber(1, (i64)cur_part[1]);*/
+#ifdef DEBUG_ALLOC
+                    writeNullTerminated(1, " removing part size ");
+                    writeNumber(1, (i64)cur_part[1]);
+#endif
                     i64 allocationAddr = (i64)cur_part - *(u8 *)((i64)cur_part - 1);
                     deallocateMemory(allocationAddr, cur_part[1]);
                 }
-                /*write(1,"\n",1);*/
+#ifdef DEBUG_ALLOC
+                write(1,"\n",1);
+#endif
                 return;
             }
 
@@ -740,9 +763,11 @@ void freeHeap(i64 addr, CMemoryHeap *heap)
                 else
                     heap->pLargeAllocations = (i64 *)cur_part[0];
 
-                /*writeNullTerminated(1, " large size ");
-                  writeNumber(1, (i64)cur_part[1]);
-                  write(1,"\n",1);*/
+#ifdef DEBUG_ALLOC
+                writeNullTerminated(1, " large size ");
+                writeNumber(1, (i64)cur_part[1]);
+                write(1,"\n",1);
+#endif
                 i64 allocationAddr = (i64)cur_part - *(u8 *)((i64)cur_part - 1);
                 deallocateMemory(allocationAddr, cur_part[1]);
                 return;
@@ -1008,7 +1033,9 @@ obj inc_ref(obj o)
 {
     if (IS_REF_COUNTED(o) && !IS_SYMBOL(o))
     {
-        //printf("%s: Ref count for obj 0x%016lx: %u\n", __func__, (i64)o, GET_REF_CNT(o) + 1);
+#ifdef DEBUG_REFCOUNT
+        printf("%s: Ref count for obj at 0x%016lx: %u\n", __func__, GET_PTR(o), GET_REF_CNT(o) + 1);
+#endif
         ++GET_REF_CNT(o);
         return o;
     }
@@ -1021,17 +1048,21 @@ i64 dec_ref(obj o)
     if (IS_REF_COUNTED(o) && !IS_SYMBOL(o))
     {
         i64 ref_cnt = --GET_REF_CNT(o);
-        //printf("%s: Ref count for obj 0x%016lx: %u\n", __func__, (i64)o, ref_cnt);
+#ifdef DEBUG_REFCOUNT
+        printf("%s: Ref count for obj at 0x%016lx: %u\n", __func__, GET_PTR(o), ref_cnt);
+#endif
         if (ref_cnt == 0)
         {
-            //printf("Refcount for obj 0x%016lx = 0, freeing...\n", (i64)o);
+#ifdef DEBUG_REFCOUNT
+            printf("Refcount for obj at 0x%016lx = 0, freeing...\n", GET_PTR(o));
+#endif
 
             if (IS_SYMBOL(o))
             {
                 /* symbol */
                 CSymbol *s = (CSymbol *)GET_PTR(o);
 
-                writeNullTerminated(1, "Freeing symbol:");
+                writeNullTerminated(1, "Freeing symbol: ");
                 printo(1, o);
                 write(1, "\n", 1);
 
@@ -1042,6 +1073,11 @@ i64 dec_ref(obj o)
             }
             else if (IS_LIST(o))
             {
+#ifdef DEBUG_REFCOUNT
+                writeNullTerminated(1, "Freeing list: ");
+                printo(1, o);
+                write(1, "\n", 1);
+#endif
                 /* this node will be freed - decrement ref to all it points to - CAR and CDR */
                 dec_ref(CAR(o));
                 /* dont free the first node - it will be freed after that */
