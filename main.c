@@ -1734,6 +1734,8 @@ finish_token2:
                                 case 'r':  ps->tempBuffer[ps->tempBufferPos++] = 0x0d; break; /* CR */
                                 case 't':  ps->tempBuffer[ps->tempBufferPos++] = 0x09; break; /* TAB */
                                 case '0':  ps->tempBuffer[ps->tempBufferPos++] = 0x00; break; /* NUL */
+                                case '\\':  ps->tempBuffer[ps->tempBufferPos++] = '\\'; break; /* backslash */
+                                case '\'':  ps->tempBuffer[ps->tempBufferPos++] = '\''; break; /* apostrophe */
                                 case STRING_DELIMITER: ps->tempBuffer[ps->tempBufferPos++] = STRING_DELIMITER; break; /* String delimiter */
                                 default:
                                                    {
